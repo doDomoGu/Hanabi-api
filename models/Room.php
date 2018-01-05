@@ -157,7 +157,7 @@ class Room extends ActiveRecord
     }
 
 
-    public static function getInfo(){
+    public static function getInfo($forceUpdate=false){
         $success = false;
         $msg = '';
         $data = [
@@ -172,8 +172,8 @@ class Room extends ActiveRecord
                 'id'=>0,
                 'username'=>'',
                 'name'=>'',
-                'is_ready'=>false
             ],
+            'is_ready'=>false
         ];
         $user_id = Yii::$app->user->id;
         $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
@@ -184,21 +184,34 @@ class Room extends ActiveRecord
                 if(count($room_players)>2){
                     $msg = '房间中人数大于2，数据错误';
                 }else{
-                    foreach($room_players as $player){
-                        if($player->is_host){
-                            $data['host_player'] = [
-                                'id'=>$player->user->id,
-                                'username'=>$player->user->username,
-                                'name'=>$player->user->nickname,
-                            ];
-                        }else{
-                            $data['guest_player'] = [
-                                'id'=>$player->user->id,
-                                'username'=>$player->user->username,
-                                'name'=>$player->user->nickname,
-                                'is_ready'=>$player->is_ready==1
-                            ];
+                    $cache = Yii::$app->cache;
+                    if($room_player->is_host){
+                        $cache_key  = 'room_info_'.$room->id.'_1_no_update';  //存在则不更新游戏信息
+                    }else{
+                        $cache_key  = 'room_info_'.$room->id.'_0_no_update';  //存在则不更新游戏信息
+                    }
+                    $cache_data = $cache->get($cache_key);
+                    if(!$forceUpdate && $cache_data){
+                        $data = ['no_update'=>true];
+                    }else{
+                        foreach($room_players as $player){
+                            if($player->is_host){
+                                $data['host_player'] = [
+                                    'id'=>$player->user->id,
+                                    'username'=>$player->user->username,
+                                    'name'=>$player->user->nickname,
+                                ];
+                            }else{
+                                $data['guest_player'] = [
+                                    'id'=>$player->user->id,
+                                    'username'=>$player->user->username,
+                                    'name'=>$player->user->nickname,
+
+                                ];
+                                $data['is_ready'] = $player->is_ready==1;
+                            }
                         }
+                        $cache->set($cache_key,true);
                     }
                     $success = true;
                 }
@@ -226,6 +239,14 @@ class Room extends ActiveRecord
                         if($room_player->is_host==0){
                             $room_player->is_ready = $room_player->is_ready==1?0:1;
                             if($room_player->save()){
+
+
+                                $cache = Yii::$app->cache;
+                                $cache_key = 'room_info_'.$room->id.'_1_no_update';
+                                $cache_key2 = 'room_info_'.$room->id.'_0_no_update';
+                                $cache->set($cache_key,false);
+                                $cache->set($cache_key2,false);
+
                                 $success = true;
                             }else{
                                 $msg = '保存错误';
