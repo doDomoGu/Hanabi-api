@@ -244,7 +244,7 @@ class GameCard extends ActiveRecord
                         $result = false;
                     }
                     $card_ord = $cardSelected->ord;
-                    self::moveHandCardsByLackOfCard($room_id,$ord);
+                    self::moveHandCardsByLackOfCard($room_id,$card_ord);
                     $success = true;
                 }else{
                     echo '游戏未开始';
