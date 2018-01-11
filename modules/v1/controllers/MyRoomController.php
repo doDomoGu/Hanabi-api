@@ -41,16 +41,6 @@ class MyRoomController extends MyActiveController
         return $return;
     }
 
-
-    public function actionIsInRoom(){
-        $return = $this->return;
-
-
-        list($return['success'],$return['msg'],$return['data']) = Room::isInRoom();
-
-        return $return;
-    }
-
     public function actionGetInfo(){
         $return = $this->return;
 

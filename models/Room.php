@@ -122,25 +122,6 @@ class Room extends ActiveRecord
         return [$success,$msg];
     }
 
-    public static function isInRoom(){
-        $success = false;
-        $msg = '';
-        $room_id = -1;
-        $is_host = -1;
-        $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            $room_id = $room_player->room_id;
-            $is_host = $room_player->is_host==1;
-            $success = true;
-        }else{
-            $msg = '不在房间中';
-        }
-
-        return [$success,$msg,['room_id'=>$room_id,'is_host'=>$is_host]];
-    }
-
-
     public static function exitRoom(){
         $success = false;
         $msg = '';

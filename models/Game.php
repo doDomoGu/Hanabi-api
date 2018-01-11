@@ -236,72 +236,67 @@ class Game extends ActiveRecord
         return [$success,$msg];
     }
 
-    public static function isInGame(){
-        $success = false;
-        $msg = '';
-        $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            $room_id = $room_player->room_id;
-            $game = Game::find()->where(['room_id'=>$room_id,'status'=>Game::STATUS_PLAYING])->one();
-            if($game) {
-                $success = true;
-            }else{
-                $msg = '你所在房间游戏未开始，错误';
-            }
-        }else{
-            $msg = '不在房间中';
-        }
-
-        return [$success,$msg];
-    }
-
-    public static function getInfo($forceUpdate=false){
+    public static function getInfo($mode,$force){
         $success = false;
         $msg = '';
         $data = [];
         $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            $game = Game::find()->where(['room_id'=>$room_player->room_id])->one();
-            if($game){
-                $gameCardCount = GameCard::find()->where(['room_id'=>$game->room_id])->count();
-                if($gameCardCount==Card::CARD_NUM_ALL){
+        $cache = Yii::$app->cache;
+        $cache_key  = 'game_info_no_update_'.$user_id;  //存在则不更新房间信息
+        $cache_data = $cache->get($cache_key);
+        if(!$force && $cache_data){
+            $data = ['no_update'=>true];
+            $success = true;
+        }else {
 
-                    $cache = Yii::$app->cache;
-                    if($room_player->is_host){
-                        $cache_key  = 'game_info_'.$game->room_id.'_1_no_update';  //存在则不更新游戏信息
+
+            $room_player = RoomPlayer::find()->where(['user_id' => $user_id])->one();
+            if ($room_player) {
+                $game = Game::find()->where(['room_id' => $room_player->room_id])->one();
+                if ($game) {
+                    $data['is_playing'] = true;
+                    if ($mode == 'all') {
+                        $gameCardCount = GameCard::find()->where(['room_id' => $game->room_id])->count();
+                        if ($gameCardCount == Card::CARD_NUM_ALL) {
+
+                            /*$cache = Yii::$app->cache;
+                            if ($room_player->is_host) {
+                                $cache_key = 'game_info_' . $game->room_id . '_1_no_update';  //存在则不更新游戏信息
+                            } else {
+                                $cache_key = 'game_info_' . $game->room_id . '_0_no_update';  //存在则不更新游戏信息
+                            }
+                            $cache_data = $cache->get($cache_key);
+                            if (!$forceUpdate && $cache_data) {
+                                $data = ['no_update' => true];
+                            } else {*/
+                            $data['game'] = [
+                                'round_num' => $game->round_num,
+                                'round_player_is_host' => $game->round_player_is_host == 1,
+                            ];
+
+                            $cardInfo = self::getCardInfo($game->room_id);
+                            $data['card'] = $cardInfo;
+
+
+                            list(, , $data['log']) = HistoryLog::getList($game->room_id);
+
+
+                            $cache->set($cache_key, true);
+                            /*}*/
+
+                            $success = true;
+                        } else {
+                            $msg = '总卡牌数错误';
+                        }
                     }else{
-                        $cache_key  = 'game_info_'.$game->room_id.'_0_no_update';  //存在则不更新游戏信息
+                        $success = true;
                     }
-                    $cache_data = $cache->get($cache_key);
-                    if(!$forceUpdate && $cache_data){
-                        $data = ['no_update'=>true];
-                    }else{
-                        $data['game'] = [
-                            'round_num'=>$game->round_num,
-                            'round_player_is_host'=>$game->round_player_is_host==1,
-                        ];
-
-                        $cardInfo = self::getCardInfo($game->room_id);
-                        $data['card'] = $cardInfo;
-
-
-                        list(,,$data['log']) = HistoryLog::getList($game->room_id);
-
-
-                        $cache->set($cache_key,true);
-                    }
-
-                    $success = true;
-                }else{
-                    $msg = '总卡牌数错误';
+                } else {
+                    $msg = '你所在房间游戏未开始，错误';
                 }
-            }else{
-                $msg = '你所在房间游戏未开始，错误';
+            } else {
+                $msg = '你不在房间中，错误';
             }
-        }else{
-            $msg = '你不在房间中，错误';
         }
 
         return [$success,$msg,$data];
