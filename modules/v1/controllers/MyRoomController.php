@@ -54,9 +54,11 @@ class MyRoomController extends MyActiveController
     public function actionGetInfo(){
         $return = $this->return;
 
-        $forceUpdate = Yii::$app->request->post('forceUpdate');
+        $mode = Yii::$app->request->post('mode','all');
 
-        list($return['success'],$return['msg'],$return['data']) = Room::getInfo($forceUpdate);
+        $force = Yii::$app->request->post('force',false);
+
+        list($return['success'],$return['msg'],$return['data']) = Room::getInfo($mode,$force);
 
         return $return;
     }
