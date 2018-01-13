@@ -31,7 +31,7 @@ class UserController extends ActiveController
         $behaviors['authenticator'] = [
             'class' => QueryParamAuth::className(),
             // 设置token名称，默认是access-token
-            'tokenParam' => 'access_token',
+            'tokenParam' => 'accessToken',
             'optional' => [
                 'index',
                 //'view',
@@ -94,8 +94,8 @@ class UserController extends ActiveController
                     $auth->save();
                     $return['success'] = true;
                     $return['token'] = $token;
-                    $return['user_id'] = $user->id;
-                    $return['user_info'] = $user->attributes;
+                    $return['userId'] = $user->id;
+                    $return['userInfo'] = $user->attributes;
 
                 }else{
                     $return['error_msg'] = '密码错误';
@@ -118,7 +118,7 @@ class UserController extends ActiveController
             'success' => false,
             'error_msg' => ''
         ];
-        $token = Yii::$app->request->get('access_token');
+        $token = Yii::$app->request->get('accessToken');
 
         $auth = UserAuth::find()->where(['token'=>$token])->one();
 
@@ -151,7 +151,7 @@ class UserController extends ActiveController
             'success' => false,
             'error_msg' => ''
         ];
-        $token = Yii::$app->request->get('access_token');
+        $token = Yii::$app->request->get('accessToken');
 
         $auth = UserAuth::find()->where(['token'=>$token])->one();
 
@@ -162,8 +162,8 @@ class UserController extends ActiveController
                     $return['success'] = true;
                     $return['token'] = $token;
                     $return['tokenForceUpdate'] = true;
-                    $return['user_id'] = $user->id;
-                    $return['user_info'] = $user->attributes;
+                    $return['userId'] = $user->id;
+                    $return['userInfo'] = $user->attributes;
                     //$return = $user->attributes;
                 }else{
                     $return['error_msg'] = 'User数据错误';

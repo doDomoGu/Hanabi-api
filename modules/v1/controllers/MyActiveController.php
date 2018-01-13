@@ -36,7 +36,7 @@ class MyActiveController extends ActiveController
         $behaviors['authenticator'] = [
             'class' => QueryParamAuth::className(),
             // 设置token名称，默认是access-token
-            'tokenParam' => 'access_token',
+            'tokenParam' => 'accessToken',
             /*'optional' => [
                 'index',
                 //'view',
