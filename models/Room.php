@@ -130,24 +130,32 @@ class Room extends ActiveRecord
         if($roomPlayer){
             $cache = Yii::$app->cache;
 
-            //room如果有其他玩家(2p,自己是1P) 要对应改变其状态
-            if($roomPlayer->is_host==1){
-                $guest_player = RoomPlayer::find()->where(['room_id'=>$roomPlayer->room_id,'is_host'=>0])->one();
-                if($guest_player){
-                    $guest_player->is_host = 1;
-                    $guest_player->is_ready = 0;
-                    $guest_player->save();
-
-                    //清空房主(此时的房主是原先的访客)的房间信息缓存
-                    $cacheKey = 'room_info_no_update_'.$guest_player->user_id;
-                    $cache->set($cacheKey,false);
-                }
-            }
             RoomPlayer::deleteAll(['user_id'=>$userId]);
 
             $cacheKey = 'room_info_no_update_'.$userId;
             $cache->set($cacheKey,false);
 
+            //room如果有其他玩家(2p,自己是1P) 要对应改变其状态
+            if($roomPlayer->is_host==1){
+                $guestPlayer = RoomPlayer::find()->where(['room_id'=>$roomPlayer->room_id,'is_host'=>0])->one();
+                if($guestPlayer){
+                    $guestPlayer->is_host = 1;
+                    $guestPlayer->is_ready = 0;
+                    $guestPlayer->save();
+
+                    //清空房主(此时的房主是原先的访客)的房间信息缓存
+                    $cacheKey = 'room_info_no_update_'.$guestPlayer->user_id;
+                    $cache->set($cacheKey,false);
+                }
+
+            }else{
+                $hostPlayer = RoomPlayer::find()->where(['room_id'=>$roomPlayer->room_id,'is_host'=>1])->one();
+                if($hostPlayer){
+                    //清空房主的房间信息缓存
+                    $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
+                    $cache->set($cacheKey,false);
+                }
+            }
             $success = true;
         }else{
             $msg = '不在房间中';
@@ -160,21 +168,21 @@ class Room extends ActiveRecord
         $success = false;
         $msg = '';
         $data = [
-            'room_id' => -1,
-            'is_host' => false,
-            'host_player' =>
+            'roomId' => -1,
+            'isHost' => false,
+            'hostPlayer' =>
             [
                 'id' => -1,
                 'username' => null,
                 'name' => null
             ],
-            'guest_player' =>
+            'guestPlayer' =>
             [
                 'id' => -1,
                 'username' => null,
                 'name' => null,
             ],
-            'is_ready' => false
+            'isReady' => false
         ];
         $userId = Yii::$app->user->id;
         $cache = Yii::$app->cache;
