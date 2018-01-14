@@ -22,12 +22,12 @@ class MyRoomController extends MyActiveController
     public function actionEnter(){
         $return = $this->return;
 
-        $room_id = Yii::$app->request->post('room_id');
+        $room_id = Yii::$app->request->post('roomId');
 
         list($return['success'],$return['msg']) = Room::enter($room_id);
 
         if($return['success']){
-            $return['data'] = ['room_id'=>$room_id];
+            $return['data'] = ['roomId'=>$room_id];
         }
 
         return $return;

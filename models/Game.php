@@ -245,7 +245,7 @@ class Game extends ActiveRecord
         $cache_key  = 'game_info_no_update_'.$user_id;  //存在则不更新房间信息
         $cache_data = $cache->get($cache_key);
         if(!$force && $cache_data){
-            $data = ['no_update'=>true];
+            $data = ['noUpdate'=>true];
             $success = true;
         }else {
 
