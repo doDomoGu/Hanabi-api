@@ -128,6 +128,13 @@ class Game extends ActiveRecord
                                             $historyPlayer->save();
                                         }
 
+                                        $roomPlayers = RoomPlayer::find()->where(['room_id' => $room->id])->all();
+                                        $cache = Yii::$app->cache;
+                                        foreach ($roomPlayers as $player) {
+                                            $cacheKey = 'room_info_no_update_'.$player->user_id;
+                                            $cache->set($cacheKey,false);
+                                        }
+
                                         $success = true;
                                     }else{
                                         $msg = '创建游戏失败';
@@ -219,6 +226,14 @@ class Game extends ActiveRecord
                             $history->status = History::STATUS_END;
                             $history->save();
                         }
+
+                        $roomPlayers = RoomPlayer::find()->where(['room_id' => $room->id])->all();
+                        $cache = Yii::$app->cache;
+                        foreach ($roomPlayers as $player) {
+                            $cacheKey = 'room_info_no_update_'.$player->user_id;
+                            $cache->set($cacheKey,false);
+                        }
+
                         $success = true;
                     }else{
                         $msg = '你所在房间游戏未开始，错误';
@@ -254,7 +269,7 @@ class Game extends ActiveRecord
             if ($room_player) {
                 $game = Game::find()->where(['room_id' => $room_player->room_id])->one();
                 if ($game) {
-                    $data['is_playing'] = true;
+                    $data['isPlaying'] = true;
                     if ($mode == 'all') {
                         $gameCardCount = GameCard::find()->where(['room_id' => $game->room_id])->count();
                         if ($gameCardCount == Card::CARD_NUM_ALL) {
@@ -270,8 +285,8 @@ class Game extends ActiveRecord
                                 $data = ['no_update' => true];
                             } else {*/
                             $data['game'] = [
-                                'round_num' => $game->round_num,
-                                'round_player_is_host' => $game->round_player_is_host == 1,
+                                'roundNum' => $game->round_num,
+                                'roundPlayerIsHost' => $game->round_player_is_host == 1,
                             ];
 
                             $cardInfo = self::getCardInfo($game->room_id);
@@ -322,15 +337,15 @@ class Game extends ActiveRecord
                 $guestCard = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_HAND, 'type_ord' => $type_orders_not_host])->orderBy('type_ord asc')->all();
 
 
-                $host_hands = [];
-                $guest_hands = [];
+                $hostHands = [];
+                $guestHands = [];
 
                 if($player_is_host){
                     foreach ($hostCard as $card) {
                         $cardArr = [
                             'ord' => $card->type_ord
                         ];
-                        $host_hands[] = $cardArr;
+                        $hostHands[] = $cardArr;
                     }
 
                     foreach ($guestCard as $card) {
@@ -339,7 +354,7 @@ class Game extends ActiveRecord
                             'num' => $card->num,
                             'ord' => $card->type_ord
                         ];
-                        $guest_hands[] = $cardArr;
+                        $guestHands[] = $cardArr;
                     }
                 }else{
                     foreach ($hostCard as $card) {
@@ -348,7 +363,7 @@ class Game extends ActiveRecord
                             'num' => $card->num,
                             'ord' => $card->type_ord
                         ];
-                        $host_hands[] = $cardArr;
+                        $hostHands[] = $cardArr;
                     }
 
 
@@ -356,7 +371,7 @@ class Game extends ActiveRecord
                         $cardArr = [
                             'ord' => $card->type_ord
                         ];
-                        $guest_hands[] = $cardArr;
+                        $guestHands[] = $cardArr;
                     }
                 }
 
@@ -372,15 +387,15 @@ class Game extends ActiveRecord
                     $table_cards[$card->color]++;
                 }
 
-                $data['host_hands'] = $host_hands;
-                $data['guest_hands'] = $guest_hands;
-                $data['library_cards_num'] = $libraryCardCount;
-                $data['discard_cards_num'] = $discardCardCount;
+                $data['hostHands'] = $hostHands;
+                $data['guestHands'] = $guestHands;
+                $data['libraryCardsNum'] = $libraryCardCount;
+                $data['discardCardsNum'] = $discardCardCount;
 
-                $data['success_cards'] = $table_cards;
+                $data['successCards'] = $table_cards;
 
-                $data['cue_num'] = $game->cue_num;
-                $data['chance_num'] = $game->chance_num;
+                $data['cueNum'] = $game->cue_num;
+                $data['chanceNum'] = $game->chance_num;
                 $data['score'] = $game->score;
             }else{
                 //TODO

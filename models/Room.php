@@ -197,41 +197,37 @@ class Room extends ActiveRecord
                 $room = Room::find()->where(['id' => $roomPlayer->room_id])->one();
                 if ($room) {
                     $data['roomId'] = $room->id;
-                    $data['isHost'] = $roomPlayer->is_host;
+                    $data['isHost'] = $roomPlayer->is_host==1;
                     if ($mode == 'all') {
                         $roomPlayers = RoomPlayer::find()->where(['room_id' => $room->id])->all();
                         if (count($roomPlayers) > 2) {
                             $msg = '房间中人数大于2，数据错误';
                         } else {
-                            /*$cache = Yii::$app->cache;
-                            if ($roomPlayer->is_host) {
-                                $cacheKey = 'room_info_' . $room->id . '_1_no_update';  //存在则不更新游戏信息
-                            } else {
-                                $cacheKey = 'room_info_' . $room->id . '_0_no_update';  //存在则不更新游戏信息
-                            }
-                            $cache_data = $cache->get($cacheKey);
-                            if (!$force && $cache_data) {
-                                $data = ['no_update' => true];
-                            } else {*/
-                                foreach ($roomPlayers as $player) {
-                                    if ($player->is_host) {
-                                        $data['hostPlayer'] = [
-                                            'id' => $player->user->id,
-                                            'username' => $player->user->username,
-                                            'name' => $player->user->nickname,
-                                        ];
-                                    } else {
-                                        $data['guestPlayer'] = [
-                                            'id' => $player->user->id,
-                                            'username' => $player->user->username,
-                                            'name' => $player->user->nickname,
+                            foreach ($roomPlayers as $player) {
+                                if ($player->is_host) {
+                                    $data['hostPlayer'] = [
+                                        'id' => $player->user->id,
+                                        'username' => $player->user->username,
+                                        'name' => $player->user->nickname,
+                                    ];
+                                } else {
+                                    $data['guestPlayer'] = [
+                                        'id' => $player->user->id,
+                                        'username' => $player->user->username,
+                                        'name' => $player->user->nickname,
 
-                                        ];
-                                        $data['isReady'] = $player->is_ready == 1;
-                                    }
+                                    ];
+                                    $data['isReady'] = $player->is_ready == 1;
                                 }
-                                $cache->set($cacheKey, true);
-                            /*}*/
+                            }
+
+                            $game = Game::find()->where(['room_id' => $room->id])->one();
+                            if ($game) {
+                                //如果游戏已经开始 isGameStart => true
+                                $data['gameStart'] = true;
+                            }
+
+                            $cache->set($cacheKey, true);
                             $success = true;
                         }
                     } else {
