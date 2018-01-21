@@ -15,6 +15,7 @@ class MyActiveController extends ActiveController
     public $return;
 
     public function init(){
+        $this->modelClass = 'default';
         parent::init();
         $this->initReturn();
     }
@@ -37,17 +38,9 @@ class MyActiveController extends ActiveController
             'class' => QueryParamAuth::className(),
             // 设置token名称，默认是access-token
             'tokenParam' => 'accessToken',
-            /*'optional' => [
-                'index',
-                //'view',
-                'create',
-                //'signup-test',
-                //'view',
-                'auth',
-                'auth-user-info',
-                'auth-delete',
-            ],*/
-
+            'optional' => [
+                'option'
+            ]
         ];
 
         $behaviors = ArrayHelper::merge([
@@ -79,4 +72,12 @@ class MyActiveController extends ActiveController
 
     }*/
 
+    public function actionOption(){
+        $request = Yii::$app->request;
+        if($request->isOptions){
+            Yii::$app->getResponse()->getHeaders()->set('Allow', 'POST GET PUT');
+            Yii::$app->end();
+
+        }
+    }
 }

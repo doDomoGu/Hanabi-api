@@ -1,13 +1,12 @@
 <?php
 $v = 'v1';
 return [
-
+    'OPTIONS '.$v.'/<controller:\w+>/<action:\w+>' => $v.'/my-active/option',
     [
         'class' => 'yii\rest\UrlRule',
         'controller' => [$v.'/user',$v.'/room'],
         'pluralize' => false
     ],
-
 
     'POST '.$v.'/my-room/enter' => $v.'/my-room/enter',  //进入房间 （是否有位置， 如有密码，密码验证）
     'POST '.$v.'/my-room/exit' => $v.'/my-room/exit',  //退出房间
@@ -25,7 +24,10 @@ return [
     'POST '.$v.'/my-game/do-cue' => $v.'/my-game/do-cue',  //提示
 
 
-
+    'POST '.$v.'/admin/login' => $v.'/user/admin-login',  //提交登录 生成token
+    //'OPTIONS '.$v.'/admin/login' => $v.'/user/admin-login',  //提交登录 生成token
+    'GET '.$v.'/admin/info' => $v.'/user/admin-info',  //提交登录 生成token
+    'POST '.$v.'/admin/logout' => $v.'/user/admin-logout',  //提交登录 生成token
 
     'POST '.$v.'/auth' => $v.'/user/auth',  //提交登录 生成token
     'DELETE '.$v.'/auth' => $v.'/user/auth-delete', //退出 清空token

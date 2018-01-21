@@ -18,7 +18,6 @@ use yii\filters\Cors;
 class UserController extends ActiveController
 {
     public function init(){
-
         $this->modelClass = User::className();
         parent::init();
     }
@@ -40,6 +39,9 @@ class UserController extends ActiveController
                 //'view',
                 'auth',
                 'auth-user-info',
+                'admin-login',
+                'admin-info',
+                'admin-logout'
                 //'auth-delete',
             ],
 
@@ -177,7 +179,67 @@ class UserController extends ActiveController
         return $return;
     }
 
+    public function actionAdminLogin(){
+        $return = [
+            'success' => false,
+            'error_msg' => ''
+        ];
+        $username = Yii::$app->request->post('username');
+        $password = Yii::$app->request->post('password');
+        if($username!='' && $password!=''){
+            $user = User::findByUsername($username);
+            if($user){
+                if($user->password == md5($password)){
+                    if($user->username === 'admin'){
+                        $return['success'] = true;
+                        $return['data']['token'] = 'admin';
+                    }else{
+                        $reutrn['error_msg'] = '不是管理员';
+                    }
+                }else{
+                    $return['error_msg'] = '密码错误';
+                }
 
+            }else{
+                $return['error_msg'] = '用户名错误';
+            }
+        }else{
+            $return['error_msg'] = '提交数据错误';
+        }
+        return $return;
+    }
 
+    public function actionAdminInfo(){
+        $return = [
+            'success' => false,
+            'error_msg' => ''
+        ];
+        $token = Yii::$app->request->get('token');
+        if($token == 'admin'){
+            $return['success'] = true;
+            $return['data'] = [
+                'roles' => 'admin',
+                'name' => 'admin',
+                'avatar' => 'https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif'
+            ];
+        }else{
+            $return['error_msg'] = '管理员不存在';
+        }
+        return $return;
+    }
+
+    public function actionAdminLogout(){
+        $return = [
+            'success' => false,
+            'error_msg' => ''
+        ];
+        $token = Yii::$app->request->get('token');
+        if($token == 'admin'){
+            $return['success'] = true;
+        }else{
+            $return['error_msg'] = '管理员不存在';
+        }
+        return $return;
+    }
 
 }
