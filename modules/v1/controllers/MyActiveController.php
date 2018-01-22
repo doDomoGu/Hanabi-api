@@ -76,8 +76,8 @@ class MyActiveController extends ActiveController
         $request = Yii::$app->request;
         if($request->isOptions){
             Yii::$app->getResponse()->getHeaders()->set('Allow', 'POST GET PUT');
+            return ['success'=>true];
             Yii::$app->end();
-
         }
     }
 }
