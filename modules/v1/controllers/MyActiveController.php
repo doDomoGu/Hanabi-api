@@ -2,6 +2,7 @@
 
 namespace app\modules\v1\controllers;
 
+use app\models\User;
 use Yii;
 
 use yii\helpers\ArrayHelper;
@@ -15,7 +16,9 @@ class MyActiveController extends ActiveController
     public $return;
 
     public function init(){
-        $this->modelClass = 'default';
+        if($this->modelClass==NULL){
+            $this->modelClass = 'null';
+        }
         parent::init();
         $this->initReturn();
     }

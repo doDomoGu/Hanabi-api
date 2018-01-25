@@ -5,7 +5,7 @@ return [
     'OPTIONS '.$v.'/<controller:\w+>' => $v.'/my-active/option',
     [
         'class' => 'yii\rest\UrlRule',
-        'controller' => [$v.'/user',$v.'/room'],
+        'controller' => [$v.'/user',$v.'/room',$v.'/game'],
         'pluralize' => false
     ],
 
