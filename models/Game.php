@@ -274,16 +274,6 @@ class Game extends ActiveRecord
                         $gameCardCount = GameCard::find()->where(['room_id' => $game->room_id])->count();
                         if ($gameCardCount == Card::CARD_NUM_ALL) {
 
-                            /*$cache = Yii::$app->cache;
-                            if ($room_player->is_host) {
-                                $cache_key = 'game_info_' . $game->room_id . '_1_no_update';  //存在则不更新游戏信息
-                            } else {
-                                $cache_key = 'game_info_' . $game->room_id . '_0_no_update';  //存在则不更新游戏信息
-                            }
-                            $cache_data = $cache->get($cache_key);
-                            if (!$forceUpdate && $cache_data) {
-                                $data = ['no_update' => true];
-                            } else {*/
                             $data['game'] = [
                                 'roundNum' => $game->round_num,
                                 'roundPlayerIsHost' => $game->round_player_is_host == 1,
@@ -447,10 +437,14 @@ class Game extends ActiveRecord
                             self::changeRoundPlayer($room_id);
 
                             $cache = Yii::$app->cache;
-                            $cache_key = 'game_info_'.$room_id.'_1_no_update';
-                            $cache_key2 = 'game_info_'.$room_id.'_0_no_update';
+                            $cache_key = 'game_info_no_update_'.$user_id;
                             $cache->set($cache_key,false);
-                            $cache->set($cache_key2,false);
+
+                            $other_user = RoomPlayer::find()->where(['room_id'=>$room_id,'is_host'=>$room_player->is_host?0:1])->one();
+                            if($other_user){
+                                $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
+                                $cache->set($cache_key2,false);
+                            }
 
                             $success = true;
                         }else{
@@ -497,7 +491,7 @@ class Game extends ActiveRecord
                             self::recoverCue($game->room_id);
                         }else{
                             //消耗一次机会
-                            $chance_num = self::useChance($game->room_id);
+                            self::useChance($game->room_id);
 
                             $result = self::checkGame();
                             if(!$result){
@@ -526,13 +520,15 @@ class Game extends ActiveRecord
                         self::changeRoundPlayer($game->room_id);
 
 
-
-
                         $cache = Yii::$app->cache;
-                        $cache_key = 'game_info_'.$game->room_id.'_1_no_update';
-                        $cache_key2 = 'game_info_'.$game->room_id.'_0_no_update';
+                        $cache_key = 'game_info_no_update_'.$user_id;
                         $cache->set($cache_key,false);
-                        $cache->set($cache_key2,false);
+
+                        $other_user = RoomPlayer::find()->where(['room_id'=>$game->room_id,'is_host'=>$room_player->is_host?0:1])->one();
+                        if($other_user){
+                            $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
+                            $cache->set($cache_key2,false);
+                        }
 
                     }else{
                         $msg = '总卡牌数错误';
@@ -590,12 +586,15 @@ class Game extends ActiveRecord
                             //交换(下一个)回合
                             self::changeRoundPlayer($game->room_id);
 
-
                             $cache = Yii::$app->cache;
-                            $cache_key = 'game_info_'.$game->room_id.'_1_no_update';
-                            $cache_key2 = 'game_info_'.$game->room_id.'_0_no_update';
+                            $cache_key = 'game_info_no_update_'.$user_id;
                             $cache->set($cache_key,false);
-                            $cache->set($cache_key2,false);
+
+                            $other_user = RoomPlayer::find()->where(['room_id'=>$game->room_id,'is_host'=>$room_player->is_host?0:1])->one();
+                            if($other_user){
+                                $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
+                                $cache->set($cache_key2,false);
+                            }
 
                         }else{
                             $msg = '提示失败';
