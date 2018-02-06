@@ -26,9 +26,17 @@ class MyGameController extends MyActiveController
 
         return $return;
     }
+
     /**
-     * This command echoes what you have entered as the message.
-     * @param string $message the message to be echoed.
+     * @api {post} /v1/my-game/get-info 获取游戏信息
+     * @apiName GetInfo
+     * @apiGroup MyGame
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiParam {string} mode=all 获取模式
+     * @apiParam {boolean} force=false 是否强制刷新
+     *
      */
     public function actionGetInfo(){
         $return = $this->return;
@@ -41,6 +49,18 @@ class MyGameController extends MyActiveController
 
         return $return;
     }
+
+    /**
+     * @api {post} /v1/my-game/get-info 获取游戏信息
+     * @apiName GetInfo
+     * @apiGroup MyGame
+     *
+     * @apiVersion 2.0.0
+     *
+     * @apiParam {string} mode=all 获取模式123
+     * @apiParam {boolean} force=false 是否强制刷新3123
+     *
+     */
 
     public function actionEnd(){
         $return = $this->return;

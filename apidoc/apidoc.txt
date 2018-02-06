@@ -1,0 +1,6 @@
+npm install apidoc -g
+
+apidoc -i ../modules/v1/ -o ./html/v1/ -c ./config/v1/
+apidoc -i ../modules/v2/ -o ./html/v2/ -c ./config/v2/
+
+
