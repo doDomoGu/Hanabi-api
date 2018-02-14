@@ -100,4 +100,12 @@ class MyGameController extends MyActiveController
 
         return $return;
     }
+
+    public function actionAutoPlay(){
+        echo 11111;exit;
+
+        list($return['success'],$return['msg']) = Game::play($ord);
+
+        return $return;
+    }
 }
