@@ -23,7 +23,7 @@ return [
     'POST '.$v.'/my-game/do-discard' => $v.'/my-game/do-discard',  //弃牌
     'POST '.$v.'/my-game/do-play' => $v.'/my-game/do-play',  //出牌
     'POST '.$v.'/my-game/do-cue' => $v.'/my-game/do-cue',  //提示
-    //'POST '.$v.'/my-game/auto-play' => $v.'/my-game/auto-play',  //挂机(每回合超过30秒)自动出牌
+    'POST '.$v.'/my-game/auto-play' => $v.'/my-game/auto-play',  //挂机(每回合超过30秒)自动出牌
 
 
     'POST '.$v.'/admin/login' => $v.'/user/admin-login',  //提交登录 生成token
