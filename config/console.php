@@ -1,6 +1,9 @@
 <?php
 
-$params = require __DIR__ . '/params.php';
+$params = yii\helpers\ArrayHelper::merge(
+    require(__DIR__ . '/params.php'),
+    require(__DIR__ . '/params_local.php')
+);
 $db = require __DIR__ . '/db_local.php';
 
 $config = [
