@@ -76,6 +76,19 @@ class UserController extends ActiveController
 
     }*/
 
+
+    /**
+     * @api {post} /v1/auth 登录验证，提交用户名和密码
+     * @apiName LoginAuth
+     * @apiGroup Auth
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiParam {string} username 用户名
+     * @apiParam {string} password 密码
+     *
+     */
+
     public function actionAuth(){
         $return = [
             'success' => false,
