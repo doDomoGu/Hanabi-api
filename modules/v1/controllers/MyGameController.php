@@ -28,7 +28,7 @@ class MyGameController extends MyActiveController
     }
 
     /**
-     * @api {post} /v1/my-game/get-info 获取游戏信息
+     * @api {post} /my-game/get-info 获取游戏信息
      * @apiName GetInfo
      * @apiGroup MyGame
      *
@@ -51,7 +51,7 @@ class MyGameController extends MyActiveController
     }
 
     /**
-     * @api {post} /v1/my-game/get-info 获取游戏信息
+     * @api {post} /my-game/get-info 获取游戏信息
      * @apiName GetInfo
      * @apiGroup MyGame
      *

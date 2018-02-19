@@ -75,6 +75,15 @@ class MyActiveController extends ActiveController
 
     }*/
 
+
+    /**
+     * @api {options} /{anything} 用来收集通过OPTIONS方式发出的请求  允许其请求
+     * @apiName AllowOptions
+     * @apiGroup MyActive
+     *
+     * @apiVersion 1.0.0
+     *
+     */
     public function actionOption(){
         $request = Yii::$app->request;
         if($request->isOptions){
