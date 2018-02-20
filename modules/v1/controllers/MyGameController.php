@@ -51,14 +51,12 @@ class MyGameController extends MyActiveController
     }
 
     /**
-     * @api {post} /my-game/get-info 获取游戏信息
-     * @apiName GetInfo
+     * @api {post} /my-game/end 游戏结束
+     * @apiName End
      * @apiGroup MyGame
      *
-     * @apiVersion 2.0.0
+     * @apiVersion 1.0.0
      *
-     * @apiParam {string} mode=all 获取模式123
-     * @apiParam {boolean} force=false 是否强制刷新3123
      *
      */
 
@@ -70,6 +68,16 @@ class MyGameController extends MyActiveController
         return $return;
     }
 
+
+    /**
+     * @api {post} /my-game/do-discard 弃牌操作
+     * @apiName DoDiscard
+     * @apiGroup MyGame
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiParam {string} cardSelectOrd 所选手牌的排序
+     */
     public function actionDoDiscard(){
         $return = $this->return;
 
