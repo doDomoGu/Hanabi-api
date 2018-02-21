@@ -1,8 +1,8 @@
 {
-  "name": "hanabi-apidoc",
+  "name": "Hanabi Api",
   "version": "1.0.0",
-  "description": "apidoc example project",
-  "title": "Custom apiDoc browser title",
+  "description": "api document",
+  "title": "Hanabi Api",
   "url" : "https://api.hanabi8.com/v1",
   "sampleUrl": "https://apitest.hanabi8.com/v1",
   "header2": {
