@@ -88,6 +88,16 @@ class MyGameController extends MyActiveController
         return $return;
     }
 
+
+    /**
+     * @api {post} /my-game/do-play 打牌操作
+     * @apiName DoPlay
+     * @apiGroup MyGame
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiParam {string} cardSelectOrd 所选手牌的排序
+     */
     public function actionDoPlay(){
         $return = $this->return;
 
@@ -98,6 +108,16 @@ class MyGameController extends MyActiveController
         return $return;
     }
 
+    /**
+     * @api {post} /my-game/do-cue 提示操作
+     * @apiName DoCue
+     * @apiGroup MyGame
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiParam {int} cardSelectOrd 所选对手手牌的排序
+     * @apiParam {int} cueType 提示类型
+     */
     public function actionDoCue(){
         $return = $this->return;
 
