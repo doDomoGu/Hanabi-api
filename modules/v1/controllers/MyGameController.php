@@ -34,8 +34,8 @@ class MyGameController extends MyActiveController
      *
      * @apiVersion 1.0.0
      *
-     * @apiParam {string} mode=all 获取模式
-     * @apiParam {boolean} force=false 是否强制刷新
+     * @apiParam {string=all,simple} mode=all 获取模式
+     * @apiParam {boolean=false,true} force=false 是否强制刷新
      *
      */
     public function actionGetInfo(){
@@ -76,7 +76,7 @@ class MyGameController extends MyActiveController
      *
      * @apiVersion 1.0.0
      *
-     * @apiParam {string} cardSelectOrd 所选手牌的排序
+     * @apiParam {int=0,1,2,3,4} cardSelectOrd 所选手牌的排序
      */
     public function actionDoDiscard(){
         $return = $this->return;
@@ -96,7 +96,7 @@ class MyGameController extends MyActiveController
      *
      * @apiVersion 1.0.0
      *
-     * @apiParam {string} cardSelectOrd 所选手牌的排序
+     * @apiParam {int=0,1,2,3,4} cardSelectOrd 所选手牌的排序
      */
     public function actionDoPlay(){
         $return = $this->return;
@@ -115,8 +115,8 @@ class MyGameController extends MyActiveController
      *
      * @apiVersion 1.0.0
      *
-     * @apiParam {int} cardSelectOrd 所选对手手牌的排序
-     * @apiParam {int} cueType 提示类型
+     * @apiParam {int=0,1,2,3,4} cardSelectOrd 所选对手手牌的排序
+     * @apiParam {string="num","color"} cueType 提示类型
      */
     public function actionDoCue(){
         $return = $this->return;
