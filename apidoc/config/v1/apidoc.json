@@ -1,10 +1,11 @@
 {
-  "name": "Hanabi Api",
+  "name": "Hanabi Api接口文档",
   "version": "1.0.0",
-  "description": "api document",
-  "title": "Hanabi Api",
+  "description2": "api document",
+  "title": "Hanabi Api接口文档",
   "url" : "https://api.hanabi8.com/v1",
-  "sampleUrl": "https://apitest.hanabi8.com/v1",
+  "sampleUrl2": "https://apitest.hanabi8.com/v1",
+  "sampleUrl": "http://localhost:8889/v1",
   "header2": {
     "title": "My own header title",
     "filename": "header.md"
@@ -16,5 +17,8 @@
   "template": {
     "withCompare": true,
     "withGenerator": true
-  }
+  },
+  "order" : [
+    "GroupUser","GroupMyGame","GetInfo","authToken"
+  ]
 }

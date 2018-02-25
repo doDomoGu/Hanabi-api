@@ -78,9 +78,16 @@ class UserController extends ActiveController
 
 
     /**
-     * @api {post} /v1/auth 登录验证，提交用户名和密码
-     * @apiName LoginAuth
-     * @apiGroup Auth
+     * @apiDefine GroupUser
+     *
+     * 用户
+     */
+
+
+    /**
+     * @api {post} /auth 登录验证
+     * @apiName Auth
+     * @apiGroup GroupUser
      *
      * @apiVersion 1.0.0
      *
