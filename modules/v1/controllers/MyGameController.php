@@ -145,10 +145,23 @@ class MyGameController extends MyActiveController
         return $return;
     }
 
-    public function actionAutoPlay(){
-        echo 11111;exit;
 
-        list($return['success'],$return['msg']) = Game::play($ord);
+    /**
+     * @api {post} /my-game/auto-play 自动打牌
+     * @apiName AutoPlay
+     * @apiGroup GroupMyGame
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiUse ParamAuthToken
+     *
+     *
+     */
+    public function actionAutoPlay(){
+        $return = $this->return;
+
+
+        list($return['success'],$return['msg']) = Game::autoPlay();
 
         return $return;
     }

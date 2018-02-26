@@ -285,6 +285,7 @@ class Game extends ActiveRecord
 
                             list(, , $data['log']) = HistoryLog::getList($game->room_id);
 
+                            $data['game']['lastUpdated'] = HistoryLog::getLastUpdate($game->room_id);
 
                             $cache->set($cache_key, true);
                             /*}*/
@@ -601,10 +602,49 @@ class Game extends ActiveRecord
                         }
 
 
-
-
                     }else{
                         $msg = '总卡牌数错误';
+                    }
+                }else{
+                    $msg = '当前不是你的回合';
+                }
+            }else{
+                $msg = '你所在房间游戏未开始/或者有多个游戏，错误';
+            }
+        }else{
+            $msg = '你不在房间中/不止在一个房间中，错误';
+        }
+
+        return [$success,$msg,$data];
+    }
+
+    /*
+     *
+     * 自动打牌（挂机）
+     *
+     * 1. 有剩余提示数 则随机提示一张牌的 颜色或者数字
+     *
+     * 2. 没有剩余提示数 则随机丢弃一张牌
+     *
+     */
+    public static function autoPlay(){
+        $success = false;
+        $msg = '';
+        $data = [];
+        $user_id = Yii::$app->user->id;
+        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
+        if($room_player){
+            $game = Game::find()->where(['room_id'=>$room_player->room_id,'status'=>Game::STATUS_PLAYING])->one();
+            if($game){
+                if($game->round_player_is_host==$room_player->is_host){
+                    if($game->cue_num>0){
+
+                        return self::cue(rand(0,4),rand(0,1));
+
+                    }else{
+
+                        return self::discard(rand(0,4));
+
                     }
                 }else{
                     $msg = '当前不是你的回合';

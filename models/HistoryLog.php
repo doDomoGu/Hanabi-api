@@ -267,4 +267,21 @@ class HistoryLog extends \yii\db\ActiveRecord
         }
         return [$success,$msg,$data];
     }
+
+
+    public static function getLastUpdate($room_id) {
+        $game = Game::find()->where(['room_id' => $room_id, 'status' => Game::STATUS_PLAYING])->one();
+        if ($game) {
+            $history = History::find()->where(['room_id' => $room_id, 'status' => History::STATUS_PLAYING])->one();
+            if ($history) {
+                $lastLog = HistoryLog::find()->where(['history_id' => $history->id])->orderBy('created_at desc')->one();
+                if($lastLog){
+                    return $lastLog->created_at;
+                }
+            }
+            return $game->updated_at;
+        } else {
+            return null;
+        }
+    }
 }
