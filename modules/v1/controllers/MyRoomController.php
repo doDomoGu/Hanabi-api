@@ -18,7 +18,29 @@ class MyRoomController extends MyActiveController
         return $behaviors;
     }
 
+    /**
+     * @apiDefine ParamAuthToken
+     *
+     * @apiParam {string} authToken 身份认证的token
+     */
 
+    /**
+     * @apiDefine GroupMyRoom
+     *
+     * 玩家对应的房间
+     */
+
+    /**
+     * @api {post} /my-room/enter 进入房间
+     * @apiName AutoPlay
+     * @apiGroup GroupMyRoom
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiUse ParamAuthToken
+     * @apiParam {int} roomId 房间ID
+     *
+     */
     public function actionEnter(){
         $return = $this->return;
 
