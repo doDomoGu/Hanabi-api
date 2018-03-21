@@ -56,7 +56,7 @@ class MyGameController extends MyActiveController
 
         $mode = Yii::$app->request->post('mode','all');
 
-        $force = Yii::$app->request->post('force',false);
+        $force = !!Yii::$app->request->post('force',false);
 
         list($return['success'],$return['msg'],$return['data']) = Game::getInfo($mode,$force);
 
