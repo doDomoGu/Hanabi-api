@@ -38,6 +38,7 @@ class UserController extends ActiveController
                 //'signup-test',
                 //'view',
                 'auth',
+                'register',
                 'auth-user-info',
                 'admin-login',
                 'admin-info',
@@ -125,6 +126,65 @@ class UserController extends ActiveController
 
             }else{
                 $return['error_msg'] = '用户名错误';
+            }
+        }else{
+            $return['error_msg'] = '提交数据错误';
+        }
+        return $return;
+    }
+
+
+    /**
+     * @api {post} /register 注册
+     * @apiName Register
+     * @apiGroup GroupUser
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiParam {string} username 用户名
+     * @apiParam {string} password 密码
+     *
+     */
+
+    public function actionRegister(){
+        $return = [
+            'success' => false,
+            'error_msg' => ''
+        ];
+        $username = Yii::$app->request->post('username');
+        $password = Yii::$app->request->post('password');
+        if($username!='' && $password!=''){
+            $pattern = '/[0-9a-z]/';
+            if(preg_match($pattern,$username)){
+                $user = User::findByUsername($username);
+                if(!$user){
+                    $newUser = new User();
+                    $newUser->username = $username;
+                    $newUser->password = md5($password);
+                    $newUser->nickname = strtoupper($username);
+                    $newUser->mobile = '000';
+                    $newUser->gender = 0;
+                    $newUser->status = 1;
+                    if($newUser->save()){
+                        $return['result'] = true;
+                        $token = H_JWT::generateToken($newUser->id);
+                        $auth = new UserAuth();
+                        $auth->user_id = $newUser->id;
+                        $auth->token = $token;
+                        $auth->expired_time = date('Y-m-d H:i:s',strtotime('+1 day'));
+                        $auth->save();
+                        $return['success'] = true;
+                        $return['token'] = $token;
+                        $return['userId'] = $newUser->id;
+                        $return['userInfo'] = $newUser->attributes;
+                    }else{
+                        $return['error_msg'] = json_encode($newUser->errors).' 222注册错误,001';
+                    }
+                }else{
+                    $return['error_msg'] = '用户名已经存在';
+                }
+            }else{
+                $return['error_msg'] = '用户名格式错误，只允许数字+小写字母';
             }
         }else{
             $return['error_msg'] = '提交数据错误';

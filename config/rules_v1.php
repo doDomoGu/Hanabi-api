@@ -32,6 +32,7 @@ return [
     'GET '.$v.'/admin/info' => $v.'/user/admin-info',  //提交登录 生成token
     'POST '.$v.'/admin/logout' => $v.'/user/admin-logout',  //提交登录 生成token
 
+    'POST '.$v.'/register' => $v.'/user/register',  //提交注册 生成token
     'POST '.$v.'/auth' => $v.'/user/auth',  //提交登录 生成token
     'DELETE '.$v.'/auth' => $v.'/user/auth-delete', //退出 清空token
     //'POST v1/auth-delete' => 'v1/user/auth-delete',  //退出 清空token
