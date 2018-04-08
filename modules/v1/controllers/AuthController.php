@@ -101,6 +101,7 @@ class AuthController extends ActiveController
      */
 
     public function actionWxcode2session(){
+        $expired_time = Yii::$app->params['wxapp']['tokenExpiredTime'];
         $return = [
             'success' => false,
             'error_msg' => ''
@@ -123,7 +124,7 @@ class AuthController extends ActiveController
                 $openid = $json_data['openid'];
                 $wxUser = WxUser::findOne(['openid'=>$openid]);
                 if($wxUser){
-                    if($wxUser->session_key!=$session_key){
+                    if(strtotime($wxUser->updated_at) + $expired_time < time() || $wxUser->session_key!=$session_key){
                         $wxUser->session_key = $session_key;
                         $wxUser->token = H_JWT::generateToken($openid);
                         $wxUser->save();
@@ -164,7 +165,7 @@ class AuthController extends ActiveController
      */
 
     public function actionWxauth(){
-        $expired_time = 30 * 60; //token有效期半小时
+        $expired_time = Yii::$app->params['wxapp']['tokenExpiredTime'];
         $return = [
             'success' => false,
             'error_msg' => ''
@@ -175,12 +176,15 @@ class AuthController extends ActiveController
             $wxUser = WxUser::findOne(['token'=>$token]);
 
             if($wxUser){
-                if(strtotime($wxUser->updated_at) + $expired_time > strtotime(time())){
-                    $return['success'] = true;
-                }
-            }
-            $return['error_msg'] = 'token无效';
 
+                if(strtotime($wxUser->updated_at) + $expired_time > time()){
+                    $return['success'] = true;
+                } else {
+                    $return['error_msg'] = 'token过期';
+                }
+            } else {
+                $return['error_msg'] = 'token无效';
+            }
         }else{
             $return['error_msg'] = '提交数据错误';
         }
