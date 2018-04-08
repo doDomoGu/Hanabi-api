@@ -87,13 +87,17 @@ class User extends ActiveRecord implements IdentityInterface
     public static function findIdentityByAccessToken($token, $type = null)
     {
         $authFlag = false;
-        $auth = UserAuth::findOne(['token'=>$token]);
+        $auth = WxUser::findOne(['token'=>$token]);
+        if($auth){
+            $authFlag = true;
+        }
+        /*$auth = UserAuth::findOne(['token'=>$token]);
         if($auth){
             if($auth->expired_time >= date('Y-m-d H:i:s')){
                 $authFlag = static::findOne(['id'=>$auth->user_id,'status'=>self::STATUS_ACTIVE]);
             }
 
-        }
+        }*/
 
         return $authFlag;
 

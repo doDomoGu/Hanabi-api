@@ -23,6 +23,24 @@ class H_JWT extends Component {
         //echo $token->getClaim('user_id'); // will print "1"
     }*/
 
+    public static function generateToken2($data){
+        if(empty($data)) return false;
+
+        $signer = new Sha256();
+
+        $expired = time() + 3600;
+
+        $token = (new Builder());
+        foreach($data as $k => $v){
+            $token = $token->set($k,$v);
+        }
+        $token = $token->setExpiration($expired)
+            ->sign($signer, Yii::$app->params['jwt_sign']) // creates a signature using "testing" as key
+            ->getToken()// Retrieves the generated token
+            ->__toString();
+
+        return $token;
+    }
 
     public static function generateToken($user_id){
         $signer = new Sha256();

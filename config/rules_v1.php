@@ -41,5 +41,7 @@ return [
     'GET '.$v.'/auth' => $v.'/user/auth-user-info', //读取用户信息（自动登录）
 
 
+    'GET '.$v.'/wxauth/code2session' => $v.'/auth/wxcode2session', //打开小程序根据用户code转换为session （检查本地应用中是否已经存在）
+    'GET '.$v.'/wxauth' => $v.'/auth/wxauth', //使用存在微信小程序storage中的session_key  与 wx_auth表中session_key 鉴权
 
 ];
