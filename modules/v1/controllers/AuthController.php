@@ -142,7 +142,7 @@ class AuthController extends ActiveController
                 }
 
                 $return['success'] = true;
-                $return['userid'] = $userid;
+                $return['user_id'] = $userid;
                 $return['token'] = $token;
             }else{
                 $return['error_msg'] = $result;
@@ -179,6 +179,7 @@ class AuthController extends ActiveController
 
                 if(strtotime($wxUser->updated_at) + $expired_time > time()){
                     $return['success'] = true;
+                    $return['user_id'] = $wxUser->id;
                 } else {
                     $return['error_msg'] = 'token过期';
                 }
