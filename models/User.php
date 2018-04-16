@@ -89,7 +89,17 @@ class User extends ActiveRecord implements IdentityInterface
         $authFlag = false;
         $auth = WxUser::findOne(['token'=>$token]);
         if($auth){
-            $authFlag = true;
+            $arr = [
+                7=>10001,
+                3=>10002,
+                4=>10003
+            ];
+            $user_id = isset($arr[$auth->id]) ? $arr[$auth->id] : false;
+            if($user_id){
+                $authFlag = static::findOne(['id'=>$user_id,'status'=>self::STATUS_ACTIVE]);
+            }
+            //$authFlag = true;
+
         }
         /*$auth = UserAuth::findOne(['token'=>$token]);
         if($auth){

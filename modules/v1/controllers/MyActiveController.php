@@ -38,15 +38,16 @@ class MyActiveController extends ActiveController
         $behaviors = parent::behaviors();
 
         //$behaviors['contentNegotiator']['formats'] = ['application/json' => Response::FORMAT_JSON];
-        /*$behaviors['authenticator'] = [
+        $behaviors['authenticator'] = [
             'class' => QueryParamAuth::className(),
             //'class' => MyQueryParamAuth::className(),
             // 设置token名称，默认是access-token
-            'tokenParam' => 'accessToken',
+            //'tokenParam' => 'accessToken',
+            'tokenParam' => 'token',
             'optional' => [
                 'option'
             ]
-        ];*/
+        ];
 
         $behaviors = ArrayHelper::merge([
             [
