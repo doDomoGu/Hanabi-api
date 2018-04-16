@@ -241,9 +241,11 @@ class Room extends ActiveRecord
                     }
                 } else {
                     $msg = '房间不存在！';
+                    $data = ['room_id' => -1];
                 }
             } else {
                 $msg = '你不在房间中!';
+                $data = ['room_id' => -1];
             }
         }
         return [$success,$msg,$data];
