@@ -481,56 +481,60 @@ class Game extends ActiveRecord
                 if($game->round_player_is_host==$room_player->is_host){
                     $gameCardCount = GameCard::find()->where(['room_id'=>$game->room_id])->count();
                     if($gameCardCount==Card::CARD_NUM_ALL){
-                        //打出一张牌
-                        list($success,$data['play_result'],$card_ord) = GameCard::playCard($game->room_id,$ord);
+                        if(in_array($ord,[0,1,2,3,4])){
 
-                        //给这个玩家摸一张牌
-                        GameCard::drawCard($game->room_id,$room_player->is_host);
+                            //打出一张牌
+                            list($success,$data['play_result'],$card_ord) = GameCard::playCard($game->room_id,$ord);
 
-                        if($data['play_result']){
-                            //恢复一个提示数
-                            self::recoverCue($game->room_id);
+                            //给这个玩家摸一张牌
+                            GameCard::drawCard($game->room_id,$room_player->is_host);
+
+                            if($data['play_result']){
+                                //恢复一个提示数
+                                self::recoverCue($game->room_id);
+                            }else{
+                                //消耗一次机会
+                                self::useChance($game->room_id);
+
+                                $result = self::checkGame();
+                                if(!$result){
+                                    self::end();
+                                }
+                            }
+
+
+                            //插入日志 record
+                            $history = History::find()->where(['room_id'=>$game->room_id,'status'=>History::STATUS_PLAYING])->one();
+                            if($history){
+                                list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($game->room_id,$card_ord,$data['play_result']);
+                                if($get_content_success){
+                                    $historyLog = new HistoryLog();
+                                    $historyLog->history_id = $history->id;
+                                    $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
+                                    $historyLog->content_param = $content_param;
+                                    $historyLog->content = $content;
+                                    $historyLog->save();
+                                    //var_dump($historyLog->errors);exit;
+                                }
+                            }
+
+
+                            //交换(下一个)回合
+                            self::changeRoundPlayer($game->room_id);
+
+
+                            $cache = Yii::$app->cache;
+                            $cache_key = 'game_info_no_update_'.$user_id;
+                            $cache->set($cache_key,false);
+
+                            $other_user = RoomPlayer::find()->where(['room_id'=>$game->room_id,'is_host'=>$room_player->is_host?0:1])->one();
+                            if($other_user){
+                                $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
+                                $cache->set($cache_key2,false);
+                            }
                         }else{
-                            //消耗一次机会
-                            self::useChance($game->room_id);
-
-                            $result = self::checkGame();
-                            if(!$result){
-                                self::end();
-                            }
+                            $msg = '卡牌顺序错误';
                         }
-
-
-                        //插入日志 record
-                        $history = History::find()->where(['room_id'=>$game->room_id,'status'=>History::STATUS_PLAYING])->one();
-                        if($history){
-                            list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($game->room_id,$card_ord,$data['play_result']);
-                            if($get_content_success){
-                                $historyLog = new HistoryLog();
-                                $historyLog->history_id = $history->id;
-                                $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
-                                $historyLog->content_param = $content_param;
-                                $historyLog->content = $content;
-                                $historyLog->save();
-                                //var_dump($historyLog->errors);exit;
-                            }
-                        }
-
-
-                        //交换(下一个)回合
-                        self::changeRoundPlayer($game->room_id);
-
-
-                        $cache = Yii::$app->cache;
-                        $cache_key = 'game_info_no_update_'.$user_id;
-                        $cache->set($cache_key,false);
-
-                        $other_user = RoomPlayer::find()->where(['room_id'=>$game->room_id,'is_host'=>$room_player->is_host?0:1])->one();
-                        if($other_user){
-                            $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
-                            $cache->set($cache_key2,false);
-                        }
-
                     }else{
                         $msg = '总卡牌数错误';
                     }
