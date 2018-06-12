@@ -356,7 +356,7 @@ class GameCard extends ActiveRecord
     private static function getInsertDiscardOrd($room_id){
         $lastDiscardCard = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_DISCARDED])->orderBy('type_ord desc')->one();
         if($lastDiscardCard){
-            $ord = $lastDiscardCard->ord + 1;
+            $ord = $lastDiscardCard->type_ord + 1;
         }else{
             $ord = 0;
         }
@@ -364,15 +364,15 @@ class GameCard extends ActiveRecord
     }
 
     //整理手牌排序 （当弃牌或者打出手牌后，进行操作）
-    public static function sortCardOrdInPlayer($game_id,$player){
-        $cards = GameCard::find()->where(['game_id'=>$game_id,'type'=>GameCard::TYPE_IN_PLAYER,'player'=>$player,'status'=>1])->orderBy('ord asc')->all();
-        $i=0;
-        foreach($cards as $c){
-            $c->ord = $i;
-            $c->save();
-            $i++;
-        }
-    }
+//    public static function sortCardOrdInPlayer($game_id,$player){
+//        $cards = GameCard::find()->where(['game_id'=>$game_id,'type'=>GameCard::TYPE_IN_PLAYER,'player'=>$player,'status'=>1])->orderBy('ord asc')->all();
+//        $i=0;
+//        foreach($cards as $c){
+//            $c->ord = $i;
+//            $c->save();
+//            $i++;
+//        }
+//    }
 
     //移动手牌 因为打出/弃掉一张牌
     private static function moveHandCardsByLackOfCard($room_id,$ord){
