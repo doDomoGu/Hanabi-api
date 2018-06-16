@@ -72,6 +72,43 @@ class Room extends ActiveRecord
         ];
     }
 
+
+    public static function getList($force = false) {
+        $success = false;
+        //$msg = '';
+        $data = [
+            'list' => []
+        ];
+
+        $userId = Yii::$app->user->id;
+        $cache = Yii::$app->cache;
+        $userCacheKey  = 'room_list_lastupdated_'.$userId;
+        $sysCacheKey  = 'room_list_lastupdated';
+        $userLastUpdated = $cache->get($userCacheKey); // 用户的房间列表的最后缓存更新时间
+        $sysLastUpdated = $cache->get($sysCacheKey); // 系统的房间列表的最后缓存更新时间
+        //如果 用户的最后缓存更新时间 < 系统的最后缓存更新时间  就要重新读取数据 并将 用户时间更新为系统时间
+        if (!$force && $userLastUpdated!='' && $userLastUpdated >= $sysLastUpdated) {
+            $data = ['noUpdate'=>true];
+            $success = true;
+        } else {
+            $rooms = Room::find()->all();
+            $list = [];
+            foreach($rooms as $r){
+                $list[] = [
+                    'id'        => $r->id,
+                    'title'     => $r->title,
+                    'isLocked'    => $r->password!=''
+                ];
+            };
+            $data['list'] = $list;
+            $data['lastupdated'] = $sysLastUpdated;
+            $cache->set($userCacheKey,$sysLastUpdated);
+            $success = true;
+        }
+        //return [$success,$msg,$data];
+        return [$success,$data];
+    }
+
     public static function enter($roomId){
         $success = false;
         $msg = '';

@@ -8,7 +8,8 @@ return [
         'controller' => [$v.'/user',$v.'/room',$v.'/game'],
         'pluralize' => false
     ],
-
+    'POST '.$v.'/room/list' => $v.'/room/list',
+    'POST '.$v.'/room/list-refresh' => $v.'/room/refresh-sys-lastupdated',
     'POST '.$v.'/my-room/enter' => $v.'/my-room/enter',  //进入房间 （是否有位置， 如有密码，密码验证）
     'POST '.$v.'/my-room/exit' => $v.'/my-room/exit',  //退出房间
     //'POST '.$v.'/my-room/is-in-room' => $v.'/my-room/is-in-room',  //判断是否在房间中  如是返回房间i
