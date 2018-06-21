@@ -243,7 +243,7 @@ class GameCard extends ActiveRecord
                         $cardSelected->save();
                         $result = false;
                     }
-                    //$card_ord = $cardSelected->ord;
+                    $card_ord = $cardSelected->ord;
                     self::moveHandCardsByLackOfCard($room_id,$type_ord);
                     $success = true;
                 }else{
