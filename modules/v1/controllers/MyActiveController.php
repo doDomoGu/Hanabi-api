@@ -39,10 +39,10 @@ class MyActiveController extends ActiveController
 
         //$behaviors['contentNegotiator']['formats'] = ['application/json' => Response::FORMAT_JSON];
         $behaviors['authenticator'] = [
-            'class' => QueryParamAuth::className(),
-            //'class' => MyQueryParamAuth::className(),
+//            'class' => QueryParamAuth::className(),
+            'class' => MyQueryParamAuth::className(),
             // 设置token名称，默认是access-token
-            'tokenParam' => 'accessToken',
+            'tokenParam' => 'X-Token',
 //            'tokenParam' => 'token',
             'optional' => [
                 'option'
