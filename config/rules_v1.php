@@ -1,8 +1,8 @@
 <?php
 $v = 'v1';
 return [
-    'OPTIONS '.$v.'/<controller:\w+>/<action:\w+>' => $v.'/my-active/option',
-    'OPTIONS '.$v.'/<controller:\w+>' => $v.'/my-active/option',
+    'OPTIONS '.$v.'/<controller:[^\/]+>/<action:[^\/]+>' => $v.'/my-active/option',
+    'OPTIONS '.$v.'/<controller:[^\/]+>' => $v.'/my-active/option',
     [
         'class' => 'yii\rest\UrlRule',
         'controller' => [$v.'/user',$v.'/room',$v.'/game'],
