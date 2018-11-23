@@ -203,7 +203,9 @@ class UserController extends ActiveController
             'success' => false,
             'error_msg' => ''
         ];
-        $token = Yii::$app->request->get('accessToken');
+        //$token = Yii::$app->request->get('accessToken');
+
+        $token = Yii::$app->request->headers->get('X-Token');
 
         $auth = UserAuth::find()->where(['token'=>$token])->one();
 
