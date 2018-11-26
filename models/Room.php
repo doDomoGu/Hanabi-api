@@ -94,10 +94,13 @@ class Room extends ActiveRecord
             $rooms = Room::find()->all();
             $list = [];
             foreach($rooms as $r){
+                $roomPlayerCount = RoomPlayer::find()->where(['room_id'=>$r->id])->count();
+
                 $list[] = [
                     'id'        => $r->id,
                     'title'     => $r->title,
-                    'isLocked'    => $r->password!=''
+                    'isLocked'    => $r->password!='',
+                    'playerCount' => (int) $roomPlayerCount
                 ];
             };
             $data['list'] = $list;
