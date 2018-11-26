@@ -40,7 +40,7 @@ class UserController extends ActiveController
                 'create',
                 //'signup-test',
                 //'view',
-                'auth',
+                'login',
                 'register',
                 'auth-user-info',
                 'admin-login',
@@ -89,7 +89,7 @@ class UserController extends ActiveController
 
 
     /**
-     * @api {post} /auth 登录验证
+     * @api {post} /login 登录验证
      * @apiName Auth
      * @apiGroup GroupUser
      *
@@ -100,7 +100,7 @@ class UserController extends ActiveController
      *
      */
 
-    public function actionAuth(){
+    public function actionLogin(){
         $return = [
             'success' => false,
             'error_msg' => ''

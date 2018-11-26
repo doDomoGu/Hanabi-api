@@ -39,8 +39,8 @@ class MyGameController extends MyActiveController
      */
 
     /**
-     * @api {post} /my-game/get-info 获取游戏信息
-     * @apiName GetInfo
+     * @api {get} /my-game/info 获取游戏信息
+     * @apiName Info
      * @apiGroup GroupMyGame
      *
      * @apiVersion 1.0.0
@@ -51,12 +51,12 @@ class MyGameController extends MyActiveController
      *
      */
 
-    public function actionGetInfo(){
+    public function actionInfo(){
         $return = $this->return;
 
-        $mode = Yii::$app->request->post('mode','all');
+        $mode = Yii::$app->request->get('mode','all');
 
-        $force = !!Yii::$app->request->post('force',false);
+        $force = !!Yii::$app->request->get('force',false);
 
         list($return['success'],$return['msg'],$return['data']) = Game::getInfo($mode,$force);
 
