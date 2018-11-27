@@ -413,7 +413,7 @@ class Game extends ActiveRecord
 
                     if($gameCardCount==Card::CARD_NUM_ALL){
                         //丢弃一张牌
-                        list($discard_success,$card_ord) =GameCard::discardCard($room_id,$ord);
+                        list($discard_success,$card_ord, $msg) =GameCard::discardCard($room_id,$ord);
                         if($discard_success){
                             //恢复一个提示数
                             self::recoverCue($room_id);
@@ -448,8 +448,6 @@ class Game extends ActiveRecord
                             }
 
                             $success = true;
-                        }else{
-                            $msg = '弃牌发生问题';
                         }
 
                     }else{
@@ -564,7 +562,7 @@ class Game extends ActiveRecord
                     $gameCardCount = GameCard::find()->where(['room_id'=>$game->room_id])->count();
                     if($gameCardCount==Card::CARD_NUM_ALL){
                         //提示一张牌
-                        list($success,$cards_ord) = GameCard::cue($game->room_id,$ord,$type);
+                        list($success,$cards_ord, $msg) = GameCard::cue($game->room_id,$ord,$type);
 
                         if($success){
                             //插入日志 record
@@ -599,8 +597,6 @@ class Game extends ActiveRecord
                                 $cache->set($cache_key2,false);
                             }
 
-                        }else{
-                            $msg = '提示失败';
                         }
 
 

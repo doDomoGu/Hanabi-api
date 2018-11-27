@@ -181,30 +181,41 @@ class GameCard extends ActiveRecord
         //统计牌的总数 应该为50张
         $count = self::find()->where(['room_id'=>$room_id])->count();
         if($count==Card::CARD_NUM_ALL){
-            //所选择的牌
-            $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
-            if($cardSelected){
-                $card_ord = $cardSelected->ord;
-                //将牌丢进弃牌堆
-                $cardSelected->type = self::TYPE_DISCARDED;
-                $cardSelected->type_ord = self::getInsertDiscardOrd($room_id);
-                if($cardSelected->save()){
-                    if(self::moveHandCardsByLackOfCard($room_id,$type_ord)){
-                        //给这个玩家摸一张牌
-                        if(in_array($type_ord,self::$host_hands_type_ord)){
-                            GameCard::drawCard($room_id,true);
-                        }else if(in_array($type_ord,self::$guest_hands_type_ord)){
-                            GameCard::drawCard($room_id,false);
+            if(RoomPlayer::isHostPlayer()){
+                $type_ords = self::$host_hands_type_ord;
+            }else{
+                $type_ords = self::$guest_hands_type_ord;
+            }
+
+            if(in_array($type_ord,$type_ords)){
+
+                //所选择的牌
+                $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
+                if($cardSelected){
+                    $card_ord = $cardSelected->ord;
+                    //将牌丢进弃牌堆
+                    $cardSelected->type = self::TYPE_DISCARDED;
+                    $cardSelected->type_ord = self::getInsertDiscardOrd($room_id);
+                    if($cardSelected->save()){
+                        if(self::moveHandCardsByLackOfCard($room_id,$type_ord)){
+                            //给这个玩家摸一张牌
+                            if(in_array($type_ord,self::$host_hands_type_ord)){
+                                GameCard::drawCard($room_id,true);
+                            }else if(in_array($type_ord,self::$guest_hands_type_ord)){
+                                GameCard::drawCard($room_id,false);
+                            }
+                            $success = true;
+                        }else{
+                            $msg = '补牌失败';
                         }
-                        $success = true;
                     }else{
-                        $msg = '补牌失败';
+                        $msg = '弃牌失败';
                     }
                 }else{
-                    $msg = '弃牌失败';
+                    $msg = '没有找到选择的牌';
                 }
             }else{
-                $msg = '没有找到选择的牌';
+                $msg='选择手牌排序错误';
             }
         }else{
             $msg = 'game card num wrong';
@@ -273,48 +284,51 @@ class GameCard extends ActiveRecord
     public static function cue($room_id,$type_ord,$type){
         $success = false;
         $cards_ord = [];
+        $msg = '';
         //统计牌的总数 应该为50张
         $count = self::find()->where(['room_id'=>$room_id])->count();
         if($count==Card::CARD_NUM_ALL){
-            //所选择的牌
-            $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
-            if($cardSelected){
-                $game = Game::find()->where(['room_id'=>$room_id])->one();
-                if($game){
-                    $hands_ord = $game->round_player_is_host?self::$guest_hands_type_ord:self::$host_hands_type_ord;
 
+            $game = Game::find()->where(['room_id'=>$room_id])->one();
+            if($game){
+                $hands_ord = $game->round_player_is_host?self::$guest_hands_type_ord:self::$host_hands_type_ord;
 
-                    if($type=='color'){
-                        $cardCueList = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'color'=>$cardSelected->color])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
+                if(in_array($type_ord,$hands_ord)){
+                    //所选择的牌
+                    $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
+                    if($cardSelected){
 
-                    }elseif($type=='num'){
-                        $cardCueList = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND])->andWhere(['in','num',Card::$numbers2[Card::$numbers[$cardSelected->num]]])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
-                    }else{
-                        $msg = '提示类型不正确';
-                    }
+                        if($type=='color'){
+                            $cardCueList = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'color'=>$cardSelected->color])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
 
-                    if(isset($cardCueList) && !empty($cardCueList)){
-                        foreach($cardCueList as $c){
-                            $cards_ord[] = $c->type_ord;
+                        }elseif($type=='num'){
+                            $cardCueList = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND])->andWhere(['in','num',Card::$numbers2[Card::$numbers[$cardSelected->num]]])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
+                        }else{
+                            $msg = '提示类型不正确';
                         }
-                        $success = true;
+
+                        if(isset($cardCueList) && !empty($cardCueList)){
+                            foreach($cardCueList as $c){
+                                $cards_ord[] = $c->type_ord;
+                            }
+                            $success = true;
+                        }else{
+                            $msg = '提示列表为空';
+                        }
+
                     }else{
-                        $msg = '提示列表为空';
+                        $msg='没有找到选择的牌';
                     }
-
-
-
-
                 }else{
-                    echo '游戏未开始';
+                    $msg = '手牌选择错误';
                 }
             }else{
-                echo '没有找到选择的牌';
+                $msg='游戏未开始';
             }
         }else{
-            echo 'game card num wrong';
+            $msg='game card num wrong';
         }
-        return [$success,$cards_ord];
+        return [$success,$cards_ord,$msg];
     }
 
     //交换手牌顺序
