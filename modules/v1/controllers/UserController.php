@@ -5,6 +5,7 @@ namespace app\modules\v1\controllers;
 use app\components\MyQueryParamAuth;
 use app\models\Game;
 use app\models\GameCard;
+use app\models\HistoryLog;
 use app\models\Room;
 use app\models\RoomPlayer;
 use Yii;
@@ -361,6 +362,7 @@ class UserController extends ActiveController
 
         $table_cards = [];
 
+        $history_log = [];
 
 
 
@@ -513,6 +515,9 @@ class UserController extends ActiveController
                                     }
 
 
+                                    list( , , $history_log) = HistoryLog::getList($game->room_id);
+
+
 
 
 
@@ -566,7 +571,7 @@ class UserController extends ActiveController
 
             echo "\n";
 
-            echo '====主机玩家===='."\n";
+            echo '====主机玩家'.($host_player && $host_player->user_id == $user_id ? ' (you)' : '').'===='."\n";
 
             if($host_player){
                 echo 'ID: '.$host_player->user_id."\n";
@@ -576,7 +581,7 @@ class UserController extends ActiveController
 
             echo "\n";
 
-            echo '====客机玩家===='."\n";
+            echo '====客机玩家'.($guest_player && $guest_player->user_id == $user_id ? ' (you)' : '').'===='."\n";
 
             if($guest_player){
                 echo 'ID: '.$guest_player->user_id."\n";
@@ -659,6 +664,16 @@ class UserController extends ActiveController
                     echo "\t".$c['color_show'].'-'.$c['num_show'].' ('.$c['ord'].')';
 
                     $tmp_i++;
+                }
+                echo "\n";
+                echo "\n";
+
+                echo "\t".'====游戏记录===='."\n";
+
+                foreach($history_log as $l){
+
+                    echo "\t".$l."\n";
+
                 }
                 echo "\n";
                 echo "\n";
