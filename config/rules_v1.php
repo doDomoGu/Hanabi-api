@@ -44,5 +44,6 @@ return [
     'GET '.$v.'/wxauth' => $v.'/auth/wxauth', //使用存在微信小程序storage中的session_key  与 wx_auth表中session_key 鉴权
 
 
-    'GET '.$v.'/user/info' => $v.'/user/info'  //获得所有信息
+    'GET '.$v.'/user/info' => $v.'/user/info',  //获得所有信息
+    'GET '.$v.'/user/test-show' => $v.'/user/test-show'
 ];

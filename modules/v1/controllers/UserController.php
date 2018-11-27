@@ -3,6 +3,9 @@
 namespace app\modules\v1\controllers;
 
 use app\components\MyQueryParamAuth;
+use app\models\Game;
+use app\models\Room;
+use app\models\RoomPlayer;
 use Yii;
 
 use app\models\UserAuth;
@@ -45,8 +48,9 @@ class UserController extends ActiveController
                 'auth-user-info',
                 'admin-login',
                 'admin-info',
-                'admin-logout'
+                'admin-logout',
                 //'auth-delete',
+                'test-show'
             ],
 
         ];
@@ -325,6 +329,197 @@ class UserController extends ActiveController
             $return['error_msg'] = '管理员不存在';
         }
         return $return;
+    }
+
+
+
+    public function actionTestShow(){
+        $wrongMsg = '';
+
+        $user = null;
+
+        $room = null;
+
+        $is_host = null;
+
+        $is_ready = null;
+
+        $host_player = null;
+
+        $guest_player = null;
+
+        $game = null;
+
+
+
+
+        $user_id = Yii::$app->user->id;
+
+        $user_id = $user_id ? $user_id : 10001;
+
+        $user = User::find()->where(['id'=>$user_id])->one();
+
+        if($user) {
+
+            $roomPlayer = RoomPlayer::find()->where(['user_id' => $user_id])->all();
+
+            if(count($roomPlayer)==1){
+                /*$selfPlayer = $roomPlayer[0]; //自己
+
+                if($selfPlayer->is_host == 1){
+                    $host_player = $roomPlayer[0];
+                }else{
+                    $guest_player = $roomPlayer[0];
+                }*/
+
+                $room_id = (int) $roomPlayer[0]->room_id;
+
+
+                $room = Room::find()->where(['id'=>$room_id])->one();
+
+                if($room){
+
+                    $roomPlayers = RoomPlayer::find()->where(['room_id'=>$room_id])->all();
+
+                    $hasTwoPlayer = false;  //房间中有两名玩家
+
+                    if(count($roomPlayers) == 1) {
+                        if($roomPlayers[0]->user_id != $user_id){
+                            $wrongMsg = '房间玩家只有一名但是不是当前玩家';
+                        }else if($roomPlayers[0]->is_host != 1){
+                            $wrongMsg = '房间玩家只有一名但是不是主机玩家';
+                        }else if($roomPlayers[0]->is_ready == 1){
+                            $wrongMsg = '房间玩家只有一名,则该名玩家为主机玩家，但是玩家准备状态为1';
+                        }else{
+                            //$is_host = true;
+                            $is_ready = false;
+                            $host_player = $roomPlayers[0];
+                        }
+                    }else if(count($roomPlayers) == 2) {
+                        if($roomPlayers[0]->is_host == 1){
+                            if($roomPlayers[0]->is_ready == 1){
+                                $wrongMsg = '主机玩家的准备状态为1';
+                            }else{
+                                if($roomPlayers[1]->is_host==1){
+                                    $wrongMsg = '两个玩家都是主机玩家';
+                                }else{
+                                    $host_player = $roomPlayers[0];
+                                    $guest_player = $roomPlayers[1];
+                                    $hasTwoPlayer = true;
+                                }    
+                            }
+                        }else{
+                            if($roomPlayers[1]->is_ready == 1){
+                                $wrongMsg = '主机玩家的准备状态为1';
+                            }else{
+                                if($roomPlayers[1]->is_host==1){
+                                    $host_player = $roomPlayers[1];
+                                    $guest_player = $roomPlayers[0];
+                                    $hasTwoPlayer = true;
+                                }else{
+                                    $wrongMsg = '两个玩家都是客机玩家';
+                                }
+                            }
+                        }
+
+                        if($hasTwoPlayer){
+                            //$is_host = $host_player->user_id == $user_id;
+                            $is_ready = $guest_player->is_ready;
+                        }
+                        
+                        
+                    }else{
+                        $wrongMsg = '房间人数错误';
+                    }
+
+
+                    $game = Game::find()->where(['room_id'=>$room_id])->one();
+
+                    if($game){
+
+                        if($hasTwoPlayer) {
+                            if($is_ready){
+
+                                if($game->status == Game::STATUS_PLAYING){
+
+                                }else{
+                                    $wrongMsg = '游戏状态错误';
+                                }
+                            }else{
+                                $wrongMsg = '游戏中，但是客机玩家状态为0';
+                            }
+                        }else {
+                            $wrongMsg = '游戏中，但是玩家人数不对';
+
+                        }
+                    }
+
+                }
+
+            }else if(count($roomPlayer)>1){
+
+                $wrongMsg = '所在房间数目大于1';
+
+            }
+            
+        }
+
+
+        if($wrongMsg!=''){
+            echo $wrongMsg;
+        }else{
+            echo '====当前用户信息===='."\n";
+
+            echo 'ID: '.$user->id."\n";
+            echo '名称: '.$user->nickname."\n";
+
+            echo "\n";
+
+            echo '====所在房间信息===='."\n";
+
+            if($room){
+                echo 'ID: '.$room->id."\n";
+                echo '标题: '.$room->title."\n";
+            }else{
+                echo 'N/A'."\n";
+            }
+
+
+            echo "\n";
+
+            echo '====主机玩家===='."\n";
+
+            if($host_player){
+                echo 'ID: '.$host_player->user_id."\n";
+            }else{
+                echo 'N/A'."\n";
+            }
+
+            echo "\n";
+
+            echo '====客机玩家===='."\n";
+
+            if($guest_player){
+                echo 'ID: '.$guest_player->user_id."\n";
+                echo '是否准备：'. ($guest_player->is_ready == 1?'是':'否')."\n";
+            }else{
+                echo 'N/A'."\n";
+            }
+
+            echo "\n";
+
+            echo '====游戏信息===='."\n";
+
+            if($game){
+                echo 'ID: '.$game->room_id."\n";
+            }else{
+                echo 'N/A'."\n";
+            }
+
+        }
+
+        exit;
+
     }
 
 }
