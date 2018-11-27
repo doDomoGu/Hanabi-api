@@ -143,7 +143,7 @@ class GameCard extends ActiveRecord
                 }
                 //最多5张手牌
                 $player_card_count = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_orders])->count();
-                if($player_card_count<=5){
+                if($player_card_count<5){ //小于5张才能摸牌
                     //查找玩家手上排序最大的牌，确定摸牌的序号 type_ord
                     $the_biggest_card = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_orders])->orderBy('type_ord desc')->one();
                     if($the_biggest_card){
@@ -216,46 +216,57 @@ class GameCard extends ActiveRecord
         $success = false;
         $result = false;
         $card_ord = -1;
+        $msg = '';
         //统计牌的总数 应该为50张
         $count = self::find()->where(['room_id'=>$room_id])->count();
         if($count==Card::CARD_NUM_ALL){
-            //所选择的牌
-            $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
-            if($cardSelected){
-                $game = Game::find()->where(['room_id'=>$room_id])->one();
-                if($game){
-                    $cardsSuccessTop = self::getCardsSuccessTop($room_id);
+            if(RoomPlayer::isHostPlayer()){
+                $type_ords = self::$host_hands_type_ord;
+            }else{
+                $type_ords = self::$guest_hands_type_ord;
+            }
 
-                    $colorTopNum = $cardsSuccessTop[$cardSelected->color]; //对应花色的目前成功的最大数值
-                    $num = Card::$numbers[$cardSelected->num];              //选中牌的数值
-                    if($colorTopNum + 1 == $num){
-                        $cardSelected->type = GameCard::TYPE_SUCCESSED;
-                        $cardSelected->type_ord = 0;
-                        $cardSelected->save();
+            if(in_array($type_ord,$type_ords)){
+                //所选择的牌
+                $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
+                if($cardSelected){
+                    $game = Game::find()->where(['room_id'=>$room_id])->one();
+                    if($game){
+                        $cardsSuccessTop = self::getCardsSuccessTop($room_id);
 
-                        $game->score +=1;
-                        $game->save();
+                        $colorTopNum = $cardsSuccessTop[$cardSelected->color]; //对应花色的目前成功的最大数值
+                        $num = Card::$numbers[$cardSelected->num];              //选中牌的数值
+                        if($colorTopNum + 1 == $num){
+                            $cardSelected->type = GameCard::TYPE_SUCCESSED;
+                            $cardSelected->type_ord = 0;
+                            $cardSelected->save();
 
-                        $result = true;
+                            $game->score +=1;
+                            $game->save();
+
+                            $result = true;
+                        }else{
+                            $cardSelected->type = self::TYPE_DISCARDED;
+                            $cardSelected->type_ord = self::getInsertDiscardOrd($room_id);
+                            $cardSelected->save();
+                            $result = false;
+                        }
+                        $card_ord = $cardSelected->ord;
+                        self::moveHandCardsByLackOfCard($room_id,$type_ord);
+                        $success = true;
                     }else{
-                        $cardSelected->type = self::TYPE_DISCARDED;
-                        $cardSelected->type_ord = self::getInsertDiscardOrd($room_id);
-                        $cardSelected->save();
-                        $result = false;
+                        $msg='游戏未开始';
                     }
-                    $card_ord = $cardSelected->ord;
-                    self::moveHandCardsByLackOfCard($room_id,$type_ord);
-                    $success = true;
                 }else{
-                    echo '游戏未开始';
+                    $msg='没有找到选择的牌';
                 }
             }else{
-                echo '没有找到选择的牌';
+                $msg='选择手牌排序错误';
             }
         }else{
-            echo 'game card num wrong';
+            $msg='game card num wrong';
         }
-        return [$success,$result,$card_ord];
+        return [$success,$result,$card_ord,$msg];
     }
 
 

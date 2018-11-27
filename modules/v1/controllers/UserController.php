@@ -4,6 +4,7 @@ namespace app\modules\v1\controllers;
 
 use app\components\MyQueryParamAuth;
 use app\models\Game;
+use app\models\GameCard;
 use app\models\Room;
 use app\models\RoomPlayer;
 use Yii;
@@ -350,6 +351,16 @@ class UserController extends ActiveController
 
         $game = null;
 
+        $guest_hands = [];
+
+        $host_hands = [];
+
+        $library_cards = [];
+
+        $discard_cards = [];
+
+        $table_cards = [];
+
 
 
 
@@ -364,13 +375,6 @@ class UserController extends ActiveController
             $roomPlayer = RoomPlayer::find()->where(['user_id' => $user_id])->all();
 
             if(count($roomPlayer)==1){
-                /*$selfPlayer = $roomPlayer[0]; //自己
-
-                if($selfPlayer->is_host == 1){
-                    $host_player = $roomPlayer[0];
-                }else{
-                    $guest_player = $roomPlayer[0];
-                }*/
 
                 $room_id = (int) $roomPlayer[0]->room_id;
 
@@ -441,6 +445,81 @@ class UserController extends ActiveController
                             if($is_ready){
 
                                 if($game->status == Game::STATUS_PLAYING){
+                                    $colors_en = ['white', 'blue', 'yellow', 'red', 'green'];
+                                    $colors_cn = ['白', '蓝', '黄', '红', '绿'];
+                                    $numbers = [1, 1, 1, 2, 2, 3, 3, 4, 4, 5];
+
+                                    //主机手牌 序号 0~4
+                                    $type_orders_is_host = [0,1,2,3,4];
+                                    //客机手牌 序号5~9
+                                    $type_orders_not_host = [5,6,7,8,9];
+
+                                    $hostCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_HAND, 'type_ord' => $type_orders_is_host])->orderBy('type_ord asc')->all();
+                                    $guestCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_HAND, 'type_ord' => $type_orders_not_host])->orderBy('type_ord asc')->all();
+
+                                    foreach($hostCards as $card){
+                                        $host_hands[] = [
+                                            'color' => $card->color,
+                                            'num' => $card->num,
+                                            'ord' => $card->type_ord,
+                                            'color_show' => $colors_cn[$card->color],
+                                            'num_show' => $numbers[$card->num],
+                                        ];
+                                    }
+
+                                    foreach($guestCards as $card){
+                                        $guest_hands[] = [
+                                            'color' => $card->color,
+                                            'num' => $card->num,
+                                            'ord' => $card->type_ord,
+                                            'color_show' => $colors_cn[$card->color],
+                                            'num_show' => $numbers[$card->num],
+                                        ];
+                                    }
+
+
+                                    $libraryCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->all();
+                                    $tableCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_SUCCESSED])->orderBy('type_ord asc')->all();
+                                    $discardCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_DISCARDED])->orderBy('type_ord asc')->all();
+
+                                    foreach($libraryCards as $card){
+                                        $library_cards[] = [
+                                            'color' => $card->color,
+                                            'num' => $card->num,
+                                            'ord' => $card->type_ord,
+                                            'color_show' => $colors_cn[$card->color],
+                                            'num_show' => $numbers[$card->num],
+                                        ];
+                                    }
+
+                                    foreach($discardCards as $card){
+                                        $discard_cards[] = [
+                                            'color' => $card->color,
+                                            'num' => $card->num,
+                                            'ord' => $card->type_ord,
+                                            'color_show' => $colors_cn[$card->color],
+                                            'num_show' => $numbers[$card->num],
+                                        ];
+                                    }
+
+                                    foreach($tableCards as $card){
+                                        $table_cards[] = [
+                                            'color' => $card->color,
+                                            'num' => $card->num,
+                                            'ord' => $card->type_ord,
+                                            'color_show' => $colors_cn[$card->color],
+                                            'num_show' => $numbers[$card->num],
+                                        ];
+                                    }
+
+
+
+
+
+
+
+                                    //list($host_hands,$guest_hands,$library_num,$discard_num,$success_cards) = Game::getCardInfo($room_id);
+
 
                                 }else{
                                     $wrongMsg = '游戏状态错误';
@@ -511,7 +590,79 @@ class UserController extends ActiveController
             echo '====游戏信息===='."\n";
 
             if($game){
-                echo 'ID: '.$game->room_id."\n";
+                echo '回合数：'.$game->round_num. "\n";
+
+                echo '剩余提示数：'.$game->cue_num.' / 8'. "\n";
+                echo '剩余机会数：'.$game->chance_num.' / 3'. "\n";
+                echo '分数：'.$game->score.' / 25'. "\n";
+                echo "\n";
+
+                echo "\t".'====主机玩家手牌'.($host_player->user_id==$user_id?' (you)':'').($game->round_player_is_host?' (play)':'').'===='."\n";
+
+                foreach($host_hands as $c){
+                    echo "\t".$c['color_show'].'-'.$c['num_show'].' ('.$c['ord'].')';
+                }
+
+                echo "\n";
+                echo "\n";
+
+                echo "\t".'====客机玩家手牌'.($guest_player->user_id==$user_id?' (you)':'').(!$game->round_player_is_host?' (play)':'').'===='."\n";
+
+                foreach($guest_hands as $c){
+                    echo "\t".$c['color_show'].'-'.$c['num_show'].' ('.$c['ord'].')';
+                }
+                echo "\n";
+                echo "\n";
+
+
+                echo "\t".'====牌库 ('.count($library_cards).')===='."\n";
+
+                $tmp_i = 0;
+                foreach($library_cards as $c){
+
+                    if($tmp_i==5){
+                        echo "\n";
+                        $tmp_i = 0;
+                    }
+                    echo "\t".$c['color_show'].'-'.$c['num_show'].' ('.$c['ord'].')';
+
+                    $tmp_i++;
+                }
+                echo "\n";
+                echo "\n";
+
+                echo "\t".'====弃牌堆 ('.count($discard_cards).')===='."\n";
+
+                $tmp_i = 0;
+                foreach($discard_cards as $c){
+
+                    if($tmp_i==5){
+                        echo "\n";
+                        $tmp_i = 0;
+                    }
+                    echo "\t".$c['color_show'].'-'.$c['num_show'].' ('.$c['ord'].')';
+
+                    $tmp_i++;
+                }
+                echo "\n";
+                echo "\n";
+
+                echo "\t".'====成功卡牌 ('.count($table_cards).')===='."\n";
+
+                $tmp_i = 0;
+                foreach($table_cards as $c){
+
+                    if($tmp_i==5){
+                        echo "\n";
+                        $tmp_i = 0;
+                    }
+                    echo "\t".$c['color_show'].'-'.$c['num_show'].' ('.$c['ord'].')';
+
+                    $tmp_i++;
+                }
+                echo "\n";
+                echo "\n";
+
             }else{
                 echo 'N/A'."\n";
             }
