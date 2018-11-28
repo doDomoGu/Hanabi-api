@@ -654,19 +654,33 @@ class UserController extends ActiveController
 
                 echo "\t".'====成功卡牌 ('.count($table_cards).')===='."\n";
 
-                $tmp_i = 0;
-                foreach($table_cards as $c){
 
-                    if($tmp_i==5){
-                        echo "\n";
-                        $tmp_i = 0;
-                    }
-                    echo "\t".$c['color_show'].'-'.$c['num_show'].' ('.$c['ord'].')';
-
-                    $tmp_i++;
+                $table_cards_arr = [
+                    0 =>[],
+                    1 =>[],
+                    2 =>[],
+                    3 =>[],
+                    4 =>[]
+                ];
+                foreach ($table_cards as $card) {
+                    $table_cards_arr[$card['color']][$card['num_show']] = $card;
                 }
+
+                foreach($table_cards_arr as $k=>$cArr){
+                    echo "\t".$colors_cn[$k];
+
+                    sort($cArr);
+                    foreach($cArr as $c){
+                        echo "\t".$c['num_show'];
+                    }
+
+
+                    echo "\n";
+                }
+
                 echo "\n";
                 echo "\n";
+
 
                 echo "\t".'====游戏记录===='."\n";
 
