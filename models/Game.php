@@ -637,11 +637,15 @@ class Game extends ActiveRecord
                 if($game->round_player_is_host==$room_player->is_host){
                     if($game->cue_num>0){
 
-                        return self::cue(rand(0,4),rand(0,1));
+                        $rand = $room_player->is_host == 1 ? rand(5,9) : rand(0,4);
+
+                        return self::cue($rand,rand(0,1) ? 'num':'color');
 
                     }else{
 
-                        return self::discard(rand(0,4));
+                        $rand = $room_player->is_host != 1 ? rand(5,9) : rand(0,4);
+
+                        return self::discard($rand);
 
                     }
                 }else{
