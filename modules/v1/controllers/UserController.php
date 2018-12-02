@@ -692,6 +692,11 @@ class UserController extends ActiveController
                 echo "\n";
                 echo "\n";
 
+
+                # 根据游戏记录 收集提示信息 来计算出牌策略
+
+
+
             }else{
                 echo 'N/A'."\n";
             }
