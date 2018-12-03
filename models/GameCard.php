@@ -20,13 +20,14 @@ use yii\db\Expression;
  */
 class GameCard extends ActiveRecord
 {
-    const TYPE_IN_HAND = 1;
-    const TYPE_IN_LIBRARY = 2;
-    const TYPE_SUCCESSED = 3;
-    const TYPE_DISCARDED = 4;
+    const TYPE_IN_LIBRARY   = 1; #牌库  牌序为 0~49 摸牌顺序为"从小到大"
+    const TYPE_HOST_HANDS   = 2; #主机玩家手牌 牌序为 0~4 按照显示的左右顺序"从小到大"
+    const TYPE_GUEST_HANDS  = 3; #客机玩家手牌 牌序为 0~4 按照显示的左右顺序"从小到大"
+    const TYPE_SUCCEEDED    = 4; #成功打出（燃放）的牌  牌序为 0~N 按照打出的顺序"从小到大"
+    const TYPE_DISCARDED    = 5; #弃掉的和打出失败的卡牌  牌序为 0~N 按照弃掉和打出的顺序"从小到大"
 
-    public static $host_hands_type_ord = [0,1,2,3,4];
-    public static $guest_hands_type_ord = [5,6,7,8,9];
+//    public static $host_hands_type_ord = [0,1,2,3,4];
+//    public static $guest_hands_type_ord = [5,6,7,8,9];
     /**
      * @inheritdoc
      */
@@ -68,11 +69,11 @@ class GameCard extends ActiveRecord
     {
         return [
             'room_id' => '房间ID',  //对应房间ID
-            'type' => 'Type',   //牌类型 1:玩家手上,2:牌库中,3:桌面上(燃放成功),4:弃牌堆(包括燃放失败也进入弃牌堆)
-            'type_ord' => 'Type Ord', //初始值 和 ord字段一样代表生成的随机花色和颜色排序（0至49），根据type不同，意义不同:1在玩家手中表示 从左至右的顺序(0-4是主机玩家 5-9是来宾玩家),3设置为0，4表示弃牌堆的顺序从0开始增加 越大表示越近丢弃的
+            'type' => 'Type',   //牌类型 1:牌库里的牌 2:主机玩家手牌 3:客机玩家手牌 4:成功打出（燃放)的卡牌 5:弃牌堆(包括燃放失败也进入弃牌堆)
+            'type_ord' => 'Type Ord', //参考 常量(const)设置中的 对应5种type后面的的牌序说明
             'color' => 'Color', //颜色Card中colors数组 0-4
             'num' => 'Num', //数字Card中numbers数组 0-9
-            'ord' => 'Ord', //初始排序 0-49  #不会改变
+            'ord' => 'Ord', //初始牌序 0-49  #不会改变
             'updated_at' => 'Updated At',
         ];
     }

@@ -695,6 +695,16 @@ class UserController extends ActiveController
 
                 # 根据游戏记录 收集提示信息 来计算出牌策略
 
+                echo "\t".'====AI===='."\n";
+
+                # 1. 无用的牌：燃放成功的
+                /*var_dump($table_cards);
+                var_dump($table_cards_arr);*/
+
+                # 2. 对方给出的提示信息：  数字 颜色
+
+                # 3. 给对方的提示信息： 数字 颜色
+
 
 
             }else{
