@@ -2,7 +2,6 @@
 
 namespace app\modules\v1\controllers;
 
-use app\components\MyQueryParamAuth;
 use app\models\Game;
 use app\models\GameCard;
 use app\models\HistoryLog;
@@ -32,17 +31,17 @@ class UserController extends MyActiveController
         $behaviors['authenticator']['optional'] = ArrayHelper::merge(
             $behaviors['authenticator']['optional'],
             [
-                'index',
+                //'index',
                 //'view',
-                'create',
+                //'create',
                 //'signup-test',
                 //'view',
                 'login',
-                'register',
+                //'register',
                 'auth-user-info',
-                'admin-login',
-                'admin-info',
-                'admin-logout',
+                //'admin-login',
+                //'admin-info',
+                //'admin-logout',
                 //'auth-delete',
                 'test-show'
             ]
@@ -172,136 +171,135 @@ class UserController extends MyActiveController
     }*/
 
     public function actionAuthDelete(){
-        if(strtoupper($_SERVER['REQUEST_METHOD'])== 'OPTIONS'){
+        /*if(strtoupper($_SERVER['REQUEST_METHOD'])== 'OPTIONS'){
             return true;
-        }
-        $return = [
-            'success' => false,
-            'error_msg' => ''
-        ];
-        //$token = Yii::$app->request->get('accessToken');
+        }*/
 
-        $token = Yii::$app->request->headers->get('X-Token');
+        $isSync = (int) Yii::$app->request->get('sync_exit') > 0;
 
-        $auth = UserAuth::find()->where(['token'=>$token])->one();
+        $expired = date('Y-m-d H:i:s',strtotime('-1 second')); //生成一个过期时间，比当前时间小
 
-        if($auth){
-            //同步退出
-            $res = UserAuth::find()->select('id,expired_time')->where(['user_id'=>Yii::$app->user->id])->all();
-            $ids = [];
-            foreach($res as $r){
-                if($r->expired_time > date('Y-m-d H:i:s')){
-                    $ids[] = $r->id;
-                }
+        if($isSync) {
+            #同步退出 user_auth表里所有user_id=当前登录用户的Token都置为过期
+            UserAuth::updateAll(
+                ['expired_time'=>$expired],
+                [
+                    'and',
+                    ['user_id'=>Yii::$app->user->id],
+                    ['>','expired_time',date('Y-m-d H:i:s')]
+                ]
+            );
+
+            return $this->sendSuccess();
+
+        } else {
+            #非同步退出 只删除使用的Token
+            $token = Yii::$app->request->headers->get('X-Token');
+
+            $auth = UserAuth::find()->where(['token'=>$token])->one();
+
+            if(!$auth){
+                return $this->sendError(0000, 'Token数据错误(退出登录时)');
             }
-            UserAuth::updateAll(['expired_time'=>date('Y-m-d H:i:s',strtotime('-1 second'))],['in','id',$ids]);
 
+            $auth->expired_time = $expired;
 
-            $return['success'] = true;
+            $auth->save();
 
-        }else{
-            $return['error_msg'] = 'Token数据错误(002)';
+            return $this->sendSuccess();
+
         }
-        return $return;
     }
 
-    /*public function actionAuthOption(){
-        return true;
-    }*/
-
     public function actionAuthUserInfo(){
-        $return = [
-            'success' => false,
-            'error_msg' => ''
-        ];
         $token = Yii::$app->request->get('accessToken');
 
         $auth = UserAuth::find()->where(['token'=>$token])->one();
 
-        if($auth) {
-            if($auth->expired_time > date('Y-m-d H:i:s')){
-                $user = User::find()->where(['id' => $auth->user_id])->one();
-                if ($user){
-                    $return['success'] = true;
-                    $return['token'] = $token;
-                    $return['tokenForceUpdate'] = true;
-                    $return['userId'] = $user->id;
-                    $return['userInfo'] = $user->attributes;
-                    //$return = $user->attributes;
-                }else{
-                    $return['error_msg'] = 'User数据错误';
-                }
-            }else{
-                $return['error_msg'] = 'Auth过期';
-            }
-        }else{
-            $return['error_msg'] = 'Auth数据错误';
+        if(!$auth) {
+            return $this->sendError(0000, 'Auth数据错误');
         }
-        return $return;
+
+        if($auth->expired_time < date('Y-m-d H:i:s')){
+            return $this->sendError(0000, 'Auth过期');
+        }
+
+        $user = User::find()->where(['id' => $auth->user_id])->one();
+
+        if (!$user){
+            return $this->sendError(0000, 'User数据错误');
+        }
+
+        $data['token'] = $token;
+        $data['tokenForceUpdate'] = true;
+        $data['userId'] = $user->id;
+        $data['userInfo'] = $user->attributes;
+
+        return $this->sendSuccess($data);
     }
 
-    public function actionAdminLogin(){
-        $return = [
-            'success' => false,
-            'error_msg' => ''
-        ];
-        $username = Yii::$app->request->post('username');
-        $password = Yii::$app->request->post('password');
-        if($username!='' && $password!=''){
-            $user = User::findByUsername($username);
-            if($user){
-                if($user->password == md5($password)){
-                    if($user->username === 'admin'){
-                        $return['success'] = true;
-                        $return['data']['token'] = 'admin';
-                    }else{
-                        $reutrn['error_msg'] = '不是管理员';
-                    }
-                }else{
-                    $return['error_msg'] = '密码错误';
-                }
-
-            }else{
-                $return['error_msg'] = '用户名错误';
-            }
-        }else{
-            $return['error_msg'] = '提交数据错误';
-        }
-        return $return;
-    }
-
-    public function actionAdminInfo(){
-        $return = [
-            'success' => false,
-            'error_msg' => ''
-        ];
-        $token = Yii::$app->request->get('token');
-        if($token == 'admin'){
-            $return['success'] = true;
-            $return['data'] = [
-                'roles' => 'admin',
-                'name' => 'admin',
-                'avatar' => 'https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif'
-            ];
-        }else{
-            $return['error_msg'] = '管理员不存在';
-        }
-        return $return;
-    }
-
-    public function actionAdminLogout(){
-        $return = [
-            'success' => false,
-            'error_msg' => ''
-        ];
-        $token = Yii::$app->request->get('token');
-        if($token == 'admin'){
-            $return['success'] = true;
-        }else{
-            $return['error_msg'] = '管理员不存在';
-        }
-        return $return;
-    }
+//    public function actionAdminLogin(){
+//        $return = [
+//            'success' => false,
+//            'error_msg' => ''
+//        ];
+//        $username = Yii::$app->request->post('username');
+//        $password = Yii::$app->request->post('password');
+//        if($username!='' && $password!=''){
+//            $user = User::findByUsername($username);
+//            if($user){
+//                if($user->password == md5($password)){
+//                    if($user->username === 'admin'){
+//                        $return['success'] = true;
+//                        $return['data']['token'] = 'admin';
+//                    }else{
+//                        $reutrn['error_msg'] = '不是管理员';
+//                    }
+//                }else{
+//                    $return['error_msg'] = '密码错误';
+//                }
+//
+//            }else{
+//                $return['error_msg'] = '用户名错误';
+//            }
+//        }else{
+//            $return['error_msg'] = '提交数据错误';
+//        }
+//        return $return;
+//    }
+//
+//    public function actionAdminInfo(){
+//        $return = [
+//            'success' => false,
+//            'error_msg' => ''
+//        ];
+//        $token = Yii::$app->request->get('token');
+//        if($token == 'admin'){
+//            $return['success'] = true;
+//            $return['data'] = [
+//                'roles' => 'admin',
+//                'name' => 'admin',
+//                'avatar' => 'https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif'
+//            ];
+//        }else{
+//            $return['error_msg'] = '管理员不存在';
+//        }
+//        return $return;
+//    }
+//
+//    public function actionAdminLogout(){
+//        $return = [
+//            'success' => false,
+//            'error_msg' => ''
+//        ];
+//        $token = Yii::$app->request->get('token');
+//        if($token == 'admin'){
+//            $return['success'] = true;
+//        }else{
+//            $return['error_msg'] = '管理员不存在';
+//        }
+//        return $return;
+//    }
 
 
 

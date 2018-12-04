@@ -48,13 +48,13 @@ class MyActiveController extends ActiveController
         return $r;
     }
 
-    protected function sendError($errorCode,$errorMsg){
+    protected function sendError($errorCode=0000,$errorMsg='未知错误'){
         $this->_code = $errorCode;
         $this->_msg = $errorMsg;
         return $this->sendResponse();
     }
 
-    protected function sendSuccess($data) {
+    protected function sendSuccess($data=null) {
         $this->_code = 0;
         $this->_data = $data;
         return $this->sendResponse();
@@ -118,7 +118,7 @@ class MyActiveController extends ActiveController
         $request = Yii::$app->request;
         if($request->isOptions){
             Yii::$app->getResponse()->getHeaders()->set('Allow', 'POST GET PUT');
-            return $this->sendSuccess([]);
+            return $this->sendSuccess();
         }
     }
 }
