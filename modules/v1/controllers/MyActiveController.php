@@ -14,23 +14,50 @@ use yii\filters\Cors;
 
 class MyActiveController extends ActiveController
 {
-    public $return;
+//    public $return;
+
+    public $_code = 0;
+    public $_data = [];
+    public $_msg = '';
+
 
     public function init(){
         if($this->modelClass==NULL){
             $this->modelClass = 'null';
         }
         parent::init();
-        $this->initReturn();
+//        $this->initReturn();
     }
 
     //初始化 返回值 数据结构
-    private function initReturn(){
+    /*private function initReturn(){
         $this->return = [
             'success'=>false,
             'msg'=>'',
             'data'=>false,
         ];
+    }*/
+
+    private function sendResponse(){
+        $r = [];
+
+        $r['code'] = $this->_code;
+        $r['data'] = $this->_data;
+        $r['msg'] = $this->_msg;
+
+        return $r;
+    }
+
+    protected function sendError($errorCode,$errorMsg){
+        $this->_code = $errorCode;
+        $this->_msg = $errorMsg;
+        return $this->sendResponse();
+    }
+
+    protected function sendSuccess($data) {
+        $this->_code = 0;
+        $this->_data = $data;
+        return $this->sendResponse();
     }
 
     public function behaviors()
@@ -91,8 +118,7 @@ class MyActiveController extends ActiveController
         $request = Yii::$app->request;
         if($request->isOptions){
             Yii::$app->getResponse()->getHeaders()->set('Allow', 'POST GET PUT');
-            return ['success'=>true];
-            Yii::$app->end();
+            return $this->sendSuccess([]);
         }
     }
 }

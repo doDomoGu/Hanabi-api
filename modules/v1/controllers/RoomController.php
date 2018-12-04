@@ -19,13 +19,15 @@ class RoomController extends MyActiveController
     }
 
     public function actionList(){
-        $return = $this->return;
-
         $force = !!Yii::$app->request->get('force',false);
 
-        list($return['success'],$return['data']) = Room::getList($force);
+        list($success, $data) = Room::getList($force);
 
-        return $return;
+        if($success){
+            return $this->sendSuccess($data);
+        }else{
+            return $this->sendError(0000,'获取房间列表错误');
+        }
     }
 
     //测试用

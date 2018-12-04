@@ -64,15 +64,18 @@ class MyRoomController extends MyActiveController
     }
 
     public function actionInfo(){
-        $return = $this->return;
 
         $mode = Yii::$app->request->get('mode','all');
 
         $force = Yii::$app->request->get('force',false);
 
-        list($return['success'],$return['msg'],$return['data']) = Room::getInfo($mode,$force);
+        list($success,$msg,$data) = Room::getInfo($mode,$force);
 
-        return $return;
+        if($success){
+            return $this->sendSuccess($data);
+        }else{
+            return $this->sendError(0000,$msg);
+        }
     }
 
     public function actionDoReady(){
