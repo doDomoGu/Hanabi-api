@@ -73,43 +73,26 @@ class Room extends ActiveRecord
     }
 
 
-    public static function getList($force = false) {
-        $success = false;
-        //$msg = '';
-        $data = [
-            'list' => []
-        ];
+
+
+    private static function isInRoom(){
 
         $userId = Yii::$app->user->id;
-        $cache = Yii::$app->cache;
-        $userCacheKey  = 'room_list_lastupdated_'.$userId;
-        $sysCacheKey  = 'room_list_lastupdated';
-        $userLastUpdated = $cache->get($userCacheKey); // 用户的房间列表的最后缓存更新时间
-        $sysLastUpdated = $cache->get($sysCacheKey); // 系统的房间列表的最后缓存更新时间
-        //如果 用户的最后缓存更新时间 < 系统的最后缓存更新时间  就要重新读取数据 并将 用户时间更新为系统时间
-        if (!$force && $userLastUpdated!='' && $userLastUpdated >= $sysLastUpdated) {
-            $data = ['noUpdate'=>true];
-            $success = true;
-        } else {
-            $rooms = Room::find()->all();
-            $list = [];
-            foreach($rooms as $r){
-                $roomPlayerCount = RoomPlayer::find()->where(['room_id'=>$r->id])->count();
 
-                $list[] = [
-                    'id'        => $r->id,
-                    'title'     => $r->title,
-                    'isLocked'    => $r->password!='',
-                    'playerCount' => (int) $roomPlayerCount
-                ];
-            };
-            $data['list'] = $list;
-            $data['lastupdated'] = $sysLastUpdated;
-            $cache->set($userCacheKey,$sysLastUpdated);
-            $success = true;
+        $roomPlayer = RoomPlayer::find()->where(['user_id' => $userId])->one();
+
+        if (!$roomPlayer || !$roomPlayer->room){
+            return [false, null];
         }
-        //return [$success,$msg,$data];
-        return [$success,$data];
+
+        $room = $roomPlayer->room;
+
+        $isHost = $roomPlayer->is_host > 0;
+
+        $isReady = !$isHost ? $roomPlayer->is_ready > 0 : null;
+
+        return [true, [$room, $isHost, $isReady]];
+
     }
 
     public static function enter($roomId){
@@ -118,7 +101,7 @@ class Room extends ActiveRecord
         $userId = Yii::$app->user->id;
         $isInRoom = RoomPlayer::find()->where(['user_id'=>$userId])->one();
         if($isInRoom){
-           $msg = '已经在房间中';
+            $msg = '已经在房间中';
         }else{
             $room = Room::find()->where(['id' => $roomId])->one();
             if ($room) {
@@ -160,6 +143,45 @@ class Room extends ActiveRecord
             }
         }
         return [$success,$msg];
+    }
+
+    public static function getList($force = false) {
+        $success = false;
+        //$msg = '';
+        $data = [
+            'list' => []
+        ];
+
+        $userId = Yii::$app->user->id;
+        $cache = Yii::$app->cache;
+        $userCacheKey  = 'room_list_lastupdated_'.$userId;
+        $sysCacheKey  = 'room_list_lastupdated';
+        $userLastUpdated = $cache->get($userCacheKey); // 用户的房间列表的最后缓存更新时间
+        $sysLastUpdated = $cache->get($sysCacheKey); // 系统的房间列表的最后缓存更新时间
+        //如果 用户的最后缓存更新时间 < 系统的最后缓存更新时间  就要重新读取数据 并将 用户时间更新为系统时间
+        if (!$force && $userLastUpdated!='' && $userLastUpdated >= $sysLastUpdated) {
+            $data = ['noUpdate'=>true];
+            $success = true;
+        } else {
+            $rooms = Room::find()->all();
+            $list = [];
+            foreach($rooms as $r){
+                $roomPlayerCount = RoomPlayer::find()->where(['room_id'=>$r->id])->count();
+
+                $list[] = [
+                    'id'        => $r->id,
+                    'title'     => $r->title,
+                    'isLocked'    => $r->password!='',
+                    'playerCount' => (int) $roomPlayerCount
+                ];
+            };
+            $data['list'] = $list;
+            $data['lastupdated'] = $sysLastUpdated;
+            $cache->set($userCacheKey,$sysLastUpdated);
+            $success = true;
+        }
+        //return [$success,$msg,$data];
+        return [$success,$data];
     }
 
     public static function exitRoom(){
@@ -205,90 +227,77 @@ class Room extends ActiveRecord
 
 
     public static function getInfo($mode='all',$force=false){
-        $success = false;
-        $msg = '';
-        $data = [
-            'roomId' => -1,
-            'isHost' => false,
-            'hostPlayer' =>
-            [
-                'id' => -1,
-                'username' => null,
-                'name' => null
-            ],
-            'guestPlayer' =>
-            [
-                'id' => -1,
-                'username' => null,
-                'name' => null,
-            ],
-            'isReady' => false
-        ];
-        $userId = Yii::$app->user->id;
+
         $cache = Yii::$app->cache;
-        $cacheKey  = 'room_info_no_update_'.$userId;  //存在则不更新房间信息
-        $cache_data = $cache->get($cacheKey);
-        if(!$force && $cache_data){
-            $data = ['noUpdate'=>true];
-            $success = true;
-        }else {
-            $roomPlayer = RoomPlayer::find()->where(['user_id' => $userId])->one();
-            if ($roomPlayer) {
-                $room = Room::find()->where(['id' => $roomPlayer->room_id])->one();
-                if ($room) {
-                    $data['roomId'] = $room->id;
-                    $data['isHost'] = $roomPlayer->is_host==1;
-                    if ($mode == 'all') {
-                        $roomPlayers = RoomPlayer::find()->where(['room_id' => $room->id])->all();
-                        if (count($roomPlayers) > 2) {
-                            $msg = '房间中人数大于2，数据错误';
-                        } else {
-                            foreach ($roomPlayers as $player) {
-                                if ($player->is_host) {
-                                    $data['hostPlayer'] = [
-                                        'id' => $player->user->id,
-                                        'username' => $player->user->username,
-                                        'name' => $player->user->nickname,
-                                    ];
-                                } else {
-                                    $data['guestPlayer'] = [
-                                        'id' => $player->user->id,
-                                        'username' => $player->user->username,
-                                        'name' => $player->user->nickname,
 
-                                    ];
-                                    $data['isReady'] = $player->is_ready == 1;
-                                }
-                            }
+        $cacheKey  = 'room_info_no_update_'.Yii::$app->user->id;  //存在则不更新房间信息
 
-                            $game = Game::find()->where(['room_id' => $room->id])->one();
-                            if ($game) {
-                                //如果游戏已经开始 isGameStart => true
-                                $data['gameStart'] = true;
-                            }
+        if(!$force) {
 
-                            $cache->set($cacheKey, true);
-                            $success = true;
-                        }
-                    } else {
-                        foreach ($data as $k => $v) {
-                            if (!in_array($k, ['roomId'/*,'is_host'*/])) {
-                                unset($data[$k]);
-                            }
-                        }
-                        if (isset($data['roomId']) &&$data['roomId'] > 0)
-                            $success = true;
-                    }
-                } else {
-                    $msg = '房间不存在！';
-                    $data = ['room_id' => -1];
-                }
-            } else {
-                $msg = '你不在房间中!';
-                $data = ['room_id' => -1];
+            $cacheData = $cache->get($cacheKey);
+
+            if($cacheData) {
+
+                return [true, ['noUpdate'=>true]];
+
             }
         }
-        return [$success,$msg,$data];
+
+        list($isInRoom, list($room,$isHost,$isReady)) = self::isInRoom();
+
+        if(!$isInRoom) {
+            return [false, null, '你不在房间中!'];
+        }
+
+        if ($mode == 'all') {
+
+
+
+            $roomPlayers = RoomPlayer::find()->where(['room_id' => $room->id])->all();
+
+            if (count($roomPlayers) > 2) {
+
+                return [false, null, '房间中人数大于2，数据错误'];
+
+            }
+
+            foreach ($roomPlayers as $player) {
+                if ($player->is_host) {
+                    $data['hostPlayer'] = [
+                        'id' => $player->user->id,
+                        'username' => $player->user->username,
+                        'name' => $player->user->nickname,
+                    ];
+                } else {
+                    $data['guestPlayer'] = [
+                        'id' => $player->user->id,
+                        'username' => $player->user->username,
+                        'name' => $player->user->nickname,
+
+                    ];
+                    $data['isReady'] = $player->is_ready > 0;
+                }
+            }
+
+            $game = Game::find()->where(['room_id' => $room->id])->one();
+            if ($game) {
+                //如果游戏已经开始 isGameStart => true
+                $data['gameStart'] = true;
+            }
+
+            $data['roomId'] = $room->id;
+
+            $data['isHost'] = $isHost;
+
+            $cache->set($cacheKey, true);
+
+            return [true, $data, null];
+
+        } else {
+
+            return [true, ['roomId'=>$room->id], null];
+
+        }
     }
 
     public static function doReady(){

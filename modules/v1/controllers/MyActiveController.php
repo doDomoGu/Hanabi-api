@@ -17,8 +17,8 @@ class MyActiveController extends ActiveController
 //    public $return;
 
     public $_code = 0;
-    public $_data = [];
-    public $_msg = '';
+    public $_data = null;
+    public $_msg = null;
 
 
     public function init(){

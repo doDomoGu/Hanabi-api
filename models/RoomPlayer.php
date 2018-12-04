@@ -77,6 +77,14 @@ class RoomPlayer extends ActiveRecord
         return $this->hasOne(User::className(), ['id' => 'user_id']);
     }
 
+    /**
+     *  关联room表
+     */
+    public function getRoom()
+    {
+        return $this->hasOne(Room::className(), ['id' => 'room_id']);
+    }
+
     public static function isHostPlayer(){
         $r = self::find()->where(['user_id'=>Yii::$app->user->id])->one();
 
