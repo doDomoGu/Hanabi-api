@@ -42,7 +42,7 @@ class MyRoomController extends MyActiveController
      *
      */
     public function actionEnter(){
-        $room_id = Yii::$app->request->post('roomId');
+        $room_id = (int) Yii::$app->request->post('roomId');
 
         list($success,$msg) = Room::enter($room_id);
 
@@ -54,9 +54,13 @@ class MyRoomController extends MyActiveController
     }
 
     public function actionExit(){
-        list($return['success'],$return['msg']) = Room::exitRoom();
+        list($success,$msg) = Room::exitRoom();
 
-        return $return;
+        if($success){
+            return $this->sendSuccess();
+        }else{
+            return $this->sendError(0000, $msg);
+        }
     }
 
     public function actionInfo(){

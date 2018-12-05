@@ -14,8 +14,6 @@ use yii\filters\Cors;
 
 class MyActiveController extends ActiveController
 {
-//    public $return;
-
     public $_code = 0;
     public $_data = null;
     public $_msg = null;
@@ -26,38 +24,22 @@ class MyActiveController extends ActiveController
             $this->modelClass = 'null';
         }
         parent::init();
-//        $this->initReturn();
     }
 
-    //初始化 返回值 数据结构
-    /*private function initReturn(){
-        $this->return = [
-            'success'=>false,
-            'msg'=>'',
-            'data'=>false,
+    private function sendResponse($code = 0, $data = null, $msg = null){
+        return [
+            'code'  =>  $code,
+            'data'  =>  $data,
+            'msg'   =>  $msg
         ];
-    }*/
-
-    private function sendResponse(){
-        $r = [];
-
-        $r['code'] = $this->_code;
-        $r['data'] = $this->_data;
-        $r['msg'] = $this->_msg;
-
-        return $r;
     }
 
     protected function sendError($errorCode=0000,$errorMsg='未知错误'){
-        $this->_code = $errorCode;
-        $this->_msg = $errorMsg;
-        return $this->sendResponse();
+        return $this->sendResponse($errorCode, null, $errorMsg);
     }
 
     protected function sendSuccess($data=null) {
-        $this->_code = 0;
-        $this->_data = $data;
-        return $this->sendResponse();
+        return $this->sendResponse(0 , $data, null);
     }
 
     public function behaviors()

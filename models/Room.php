@@ -77,9 +77,7 @@ class Room extends ActiveRecord
 
     private static function isInRoom(){
 
-        $userId = Yii::$app->user->id;
-
-        $roomPlayer = RoomPlayer::find()->where(['user_id' => $userId])->one();
+        $roomPlayer = RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->one();
 
         if (!$roomPlayer || !$roomPlayer->room){
             return [false, null];
@@ -96,53 +94,53 @@ class Room extends ActiveRecord
     }
 
     public static function enter($roomId){
-        $success = false;
-        $msg = '';
-        $userId = Yii::$app->user->id;
-        $isInRoom = RoomPlayer::find()->where(['user_id'=>$userId])->one();
-        if($isInRoom){
-            $msg = '已经在房间中';
-        }else{
-            $room = Room::find()->where(['id' => $roomId])->one();
-            if ($room) {
-                if ($room->password != '') {
-                    $msg = '房间被锁住了';
-                } else {
-                    $roomPlayerCount = (int)RoomPlayer::find()->where(['room_id' => $room->id])->count();
-                    if ($roomPlayerCount<2){
-                        if ($roomPlayerCount === 0) {
-                            $newRoomPlayer = new RoomPlayer();
-                            $newRoomPlayer->room_id = $roomId;
-                            $newRoomPlayer->user_id = $userId;
-                            $newRoomPlayer->is_host = 1;
-                            $newRoomPlayer->is_ready = 0;
-                            $newRoomPlayer->save();
-                        }else if ($roomPlayerCount === 1) {
-                            $newRoomPlayer = new RoomPlayer();
-                            $newRoomPlayer->room_id = $roomId;
-                            $newRoomPlayer->user_id = $userId;
-                            $newRoomPlayer->is_host = 0;
-                            $newRoomPlayer->is_ready = 0;
-                            $newRoomPlayer->save();
+        list($isInRoom) = self::isInRoom();
 
-                            //清空房主的房间信息缓存
-                            $hostPlayer = RoomPlayer::find()->where(['room_id' => $room->id,'is_host'=>1])->one();
-                            if($hostPlayer){
-                                $cache = Yii::$app->cache;
-                                $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
-                                $cache->set($cacheKey,false);
-                            }
-                        }
-                        $success = true;
-                    }else{
-                        $msg = '房间已满/房间人数多于两个，错误！';
-                    }
-                }
-            } else {
-                $msg = '房间号错误';
+        if($isInRoom){
+            return [false, '已经在房间中'];
+        }
+
+        $room = Room::find()->where(['id' => $roomId])->one();
+
+        if(!$room){
+            return [false, '房间号错误'];
+        }
+
+        if ($room->password != '') {
+            return [false, '房间被锁住了'];
+        }
+
+        $roomPlayerCount = (int) RoomPlayer::find()->where(['room_id' => $room->id])->count();
+
+        if ($roomPlayerCount>1){
+            return [false, '房间已满/房间人数多于两个，错误！'];
+        }
+
+        if ($roomPlayerCount === 0) {
+            $newRoomPlayer = new RoomPlayer();
+            $newRoomPlayer->room_id = $roomId;
+            $newRoomPlayer->user_id = Yii::$app->user->id;
+            $newRoomPlayer->is_host = 1;
+            $newRoomPlayer->is_ready = 0;
+            $newRoomPlayer->save();
+        }else if ($roomPlayerCount === 1) {
+            $newRoomPlayer = new RoomPlayer();
+            $newRoomPlayer->room_id = $roomId;
+            $newRoomPlayer->user_id = Yii::$app->user->id;
+            $newRoomPlayer->is_host = 0;
+            $newRoomPlayer->is_ready = 0;
+            $newRoomPlayer->save();
+
+            //清空房主的房间信息缓存
+            $hostPlayer = RoomPlayer::find()->where(['room_id' => $room->id,'is_host'=>1])->one();
+            if($hostPlayer){
+                $cache = Yii::$app->cache;
+                $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
+                $cache->set($cacheKey,false);
             }
         }
-        return [$success,$msg];
+
+        return [true, null];
     }
 
     public static function getList($force = false) {
@@ -185,44 +183,41 @@ class Room extends ActiveRecord
     }
 
     public static function exitRoom(){
-        $success = false;
-        $msg = '';
-        $userId = Yii::$app->user->id;
-        $roomPlayer = RoomPlayer::find()->where(['user_id'=>$userId])->one();
-        if($roomPlayer){
-            $cache = Yii::$app->cache;
 
-            RoomPlayer::deleteAll(['user_id'=>$userId]);
+        list($isInRoom, list($room, $isHost, $isReady)) = self::isInRoom();
 
-            $cacheKey = 'room_info_no_update_'.$userId;
-            $cache->set($cacheKey,false);
-
-            //room如果有其他玩家(2p,自己是1P) 要对应改变其状态
-            if($roomPlayer->is_host==1){
-                $guestPlayer = RoomPlayer::find()->where(['room_id'=>$roomPlayer->room_id,'is_host'=>0])->one();
-                if($guestPlayer){
-                    $guestPlayer->is_host = 1;
-                    $guestPlayer->is_ready = 0;
-                    $guestPlayer->save();
-
-                    //清空房主(此时的房主是原先的访客)的房间信息缓存
-                    $cacheKey = 'room_info_no_update_'.$guestPlayer->user_id;
-                    $cache->set($cacheKey,false);
-                }
-
-            }else{
-                $hostPlayer = RoomPlayer::find()->where(['room_id'=>$roomPlayer->room_id,'is_host'=>1])->one();
-                if($hostPlayer){
-                    //清空房主的房间信息缓存
-                    $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
-                    $cache->set($cacheKey,false);
-                }
-            }
-            $success = true;
-        }else{
-            $msg = '不在房间中';
+        if(!$isInRoom){
+            return [false, '不在房间中'];
         }
-        return [$success,$msg];
+
+        RoomPlayer::deleteAll(['user_id'=>Yii::$app->user->id]);
+
+        $cache = Yii::$app->cache;
+        $cacheKey = 'room_info_no_update_'.Yii::$app->user->id;
+        $cache->set($cacheKey,false);
+
+        //原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
+        if($isHost){
+            $guestPlayer = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>0])->one();
+            if($guestPlayer){
+                $guestPlayer->is_host = 1;
+                $guestPlayer->is_ready = 0;
+                $guestPlayer->save();
+
+                //清空房主(此时的房主是原先的访客)的房间信息缓存
+                $cacheKey = 'room_info_no_update_'.$guestPlayer->user_id;
+                $cache->set($cacheKey,false);
+            }
+
+        }else{
+            $hostPlayer = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>1])->one();
+            if($hostPlayer){
+                //清空房主的房间信息缓存
+                $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
+                $cache->set($cacheKey,false);
+            }
+        }
+        return [true, null];
     }
 
 
