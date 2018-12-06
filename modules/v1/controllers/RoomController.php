@@ -36,5 +36,6 @@ class RoomController extends MyActiveController
         $cache = Yii::$app->cache;
         $roomListUpdateCacheKey  = 'room_list_lastupdated';  //存在则不更新房间信息
         $cache->set($roomListUpdateCacheKey, date('Y-m-d H:i:s'));
+        return date('Y-m-d H:i:s');
     }
 }

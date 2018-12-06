@@ -31,7 +31,7 @@ return [
     # 房间列表
     'GET '.$v.'/room/list' => $v.'/room/list',
 
-    //'POST '.$v.'/room/list-refresh' => $v.'/room/refresh-sys-lastupdated',
+    'POST '.$v.'/room/list-refresh' => $v.'/room/refresh-sys-lastupdated',
 
 
     # 我的房间
