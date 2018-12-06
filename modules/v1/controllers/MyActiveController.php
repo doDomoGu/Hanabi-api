@@ -34,6 +34,13 @@ class MyActiveController extends ActiveController
         ];
     }
 
+    protected function sendException(\Exception $e){
+        $code = $e->getCode();
+        $code = $code === 0 ? 400 : $code;
+        $msg = $e->getMessage();
+        return $this->sendError($code,$msg);
+    }
+
     protected function sendError($errorCode=0000,$errorMsg='未知错误'){
         return $this->sendResponse($errorCode, null, $errorMsg);
     }

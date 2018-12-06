@@ -72,35 +72,51 @@ class Room extends ActiveRecord
         ];
     }
 
+    // 房间中的主机玩家
+    public function getHostPlayer()
+    {
+        return $this->hasOne(RoomPlayer::className(), ['room_id' => 'id'])->where(['is_host' => 1]);
+    }
 
+    // 房间中的客机玩家
+    public function getGuestPlayer()
+    {
+        return $this->hasOne(RoomPlayer::className(), ['room_id' => 'id'])->where(['is_host' => 0]);
+    }
 
-
-    private static function isInRoom(){
+    # 检查当前玩家是否在房间中， 且房间状态是否正确
+    # 返回房间ID
+    public static function isInRoom(){
 
         $roomPlayer = RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->one();
 
-        if (!$roomPlayer || !$roomPlayer->room){
+        if (!$roomPlayer){
             return [false, null];
         }
 
-        $room = $roomPlayer->room;
+        //RoomPlayer有在房间中记录，可是room_id对应房间却不存在，抛出异常
+        if(!$roomPlayer->room){
+            throw new \Exception('房间不存在',10002);
+        }
 
-        $isHost = $roomPlayer->is_host > 0;
+        return [true, $roomPlayer->room->id];
+    }
 
-        $isReady = !$isHost ? $roomPlayer->is_ready > 0 : null;
+    public static function getInfoById($roomId){
 
-        return [true, [$room, $isHost, $isReady]];
+        return Room::find()->where(['id' => $roomId])->one();
+
 
     }
 
     public static function enter($roomId){
-        list($isInRoom) = self::isInRoom();
+        list($isInRoom) = Room::isInRoom();
 
         if($isInRoom){
             return [false, '已经在房间中'];
         }
 
-        $room = Room::find()->where(['id' => $roomId])->one();
+        $room = Room::getInfoById($roomId);
 
         if(!$room){
             return [false, '房间号错误'];
@@ -110,11 +126,16 @@ class Room extends ActiveRecord
             return [false, '房间被锁住了'];
         }
 
-        $roomPlayerCount = (int) RoomPlayer::find()->where(['room_id' => $room->id])->count();
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
 
-        if ($roomPlayerCount>1){
+        if($hostPlayer && $guestPlayer){
             return [false, '房间已满/房间人数多于两个，错误！'];
         }
+
+
+
+
 
         if ($roomPlayerCount === 0) {
             $newRoomPlayer = new RoomPlayer();
@@ -184,7 +205,7 @@ class Room extends ActiveRecord
 
     public static function exitRoom(){
 
-        list($isInRoom, list($room, $isHost, $isReady)) = self::isInRoom();
+        list($isInRoom, $roomId) = Room::isInRoom();
 
         if(!$isInRoom){
             return [false, '不在房间中'];
@@ -196,8 +217,15 @@ class Room extends ActiveRecord
         $cacheKey = 'room_info_no_update_'.Yii::$app->user->id;
         $cache->set($cacheKey,false);
 
-        //原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
-        if($isHost){
+        $room = Room::getInfoById($roomId);
+
+        var_dump($room->hostPlayer);
+        var_dump($room->guestPlayer);
+        exit;
+
+        #原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
+
+        if($room->isHost){
             $guestPlayer = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>0])->one();
             if($guestPlayer){
                 $guestPlayer->is_host = 1;
@@ -221,32 +249,33 @@ class Room extends ActiveRecord
     }
 
 
-    public static function getInfo($mode='all',$force=false){
+    public static function info($mode='all',$force=false){
 
-        $cache = Yii::$app->cache;
 
-        $cacheKey  = 'room_info_no_update_'.Yii::$app->user->id;  //存在则不更新房间信息
+//        $cache = Yii::$app->cache;
+//
+//        $cacheKey  = 'room_info_no_update_'.Yii::$app->user->id;  //存在则不更新房间信息
+//
+//        if(!$force) {
+//
+//            $cacheData = $cache->get($cacheKey);
+//
+//            if($cacheData) {
+//
+//                return [true, ['noUpdate'=>true]];
+//
+//            }
+//        }
 
-        if(!$force) {
+        list($isInRoom, $roomId) = Room::isInRoom();
 
-            $cacheData = $cache->get($cacheKey);
-
-            if($cacheData) {
-
-                return [true, ['noUpdate'=>true]];
-
-            }
+        if($isInRoom){
+            
         }
 
-        list($isInRoom, list($room,$isHost,$isReady)) = self::isInRoom();
 
-        if(!$isInRoom) {
-            return [false, null, '你不在房间中!'];
-        }
 
         if ($mode == 'all') {
-
-
 
             $roomPlayers = RoomPlayer::find()->where(['room_id' => $room->id])->all();
 
@@ -284,25 +313,32 @@ class Room extends ActiveRecord
 
             $data['isHost'] = $isHost;
 
-            $cache->set($cacheKey, true);
+            //$cache->set($cacheKey, true);
 
             return [true, $data, null];
 
         } else {
 
-            return [true, ['roomId'=>$room->id], null];
+            return [true, ['roomId'=>$roomId], null];
 
         }
     }
 
     public static function doReady(){
-        $success = false;
-        $msg = '';
-        $userId = Yii::$app->user->id;
-        $roomPlayer = RoomPlayer::find()->where(['user_id'=>$userId])->one();
-        if($roomPlayer){
-            $room = Room::find()->where(['id'=>$roomPlayer->room_id])->one();
-            if($room){
+
+        list($isInRoom, list($room, $isHost, $isReady)) = Room::isInRoom();
+
+        if(!$isInRoom){
+            return [false, '你不在房间中'];
+        }
+
+        list($isInGame) = Game::isInGame();
+
+
+
+
+
+
                 $game = Game::find()->where(['room_id'=>$room->id,'status'=>Game::STATUS_PLAYING])->one();
                 if(!$game){
                     $roomPlayerCount = RoomPlayer::find()->where(['room_id'=>$room->id])->count();
@@ -337,12 +373,7 @@ class Room extends ActiveRecord
                 }else{
                     $msg = '游戏已经开始';
                 }
-            }else{
-                $msg = '房间不存在！';
-            }
-        }else{
-            $msg = '你不在房间中，错误';
-        }
+
 
         return [$success,$msg];
     }

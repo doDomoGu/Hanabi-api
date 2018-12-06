@@ -88,6 +88,14 @@ class Game extends ActiveRecord
         ];
     }
 
+    public static function isInGame(){
+        list($isInRoom, list($room)) = Room::isInRoom();
+
+
+
+        $game = Game::find()->where(['room_id'=>$room->id,'status'=>Game::STATUS_PLAYING])->one();
+    }
+
 
     public static function start(){
         $success = false;
