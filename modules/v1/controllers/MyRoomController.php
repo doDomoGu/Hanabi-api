@@ -88,13 +88,15 @@ class MyRoomController extends MyActiveController
     }
 
     public function actionDoReady(){
+        try {
+            Room::doReady();
 
-        list($success,$msg) = Room::doReady();
-
-        if($success){
             return $this->sendSuccess();
-        }else{
-            return $this->sendError(0000, $msg);
+
+        }catch ( \Exception $e) {
+
+            return $this->sendException($e);
+
         }
     }
 

@@ -36,6 +36,12 @@ class Room extends ActiveRecord
     const EXCEPTION_ENTER_HAS_IN_ROOM_MSG   = '进入操作，但是已经在房间中';
     const EXCEPTION_ENTER_PLAYER_FULL_CODE  = 10008;
     const EXCEPTION_ENTER_PLAYER_FULL_MSG   = '进入操作，但是房间已满';
+    const EXCEPTION_DO_READY_NOT_IN_ROOM_CODE = 10009;
+    const EXCEPTION_DO_READY_NOT_IN_ROOM_MSG  = '准备操作，但是不在房间内';
+    const EXCEPTION_DO_READY_NOT_GUEST_PLAYER_CODE = 10010;
+    const EXCEPTION_DO_READY_NOT_GUEST_PLAYER_MSG  = '准备操作，但是不是客机玩家';
+    const EXCEPTION_DO_READY_FAILURE_CODE = 10011;
+    const EXCEPTION_DO_READY_FAILURE_MSG  = '准备操作，失败';
 
     /**
      * @inheritdoc
@@ -166,57 +172,13 @@ class Room extends ActiveRecord
                 $isHost = false;
             }
 
-            if (!$isHost) {
+            if (!$isHost && $guestPlayer) {
                 $isReady = $guestPlayer->is_ready > 0;
             }
         }
 
 
         return [$room, $hostPlayer, $guestPlayer, $isHost, $isReady];
-    }
-
-    public static function enter($roomId){
-        list($isInRoom) = Room::isInRoom();
-
-        if($isInRoom){
-            throw new \Exception(Room::EXCEPTION_ENTER_HAS_IN_ROOM_MSG,Room::EXCEPTION_ENTER_HAS_IN_ROOM_CODE);
-        }
-
-        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
-
-        if ($room->password != '') {
-            //TODO 房间密码处理
-            throw new \Exception('房间有密码',12345);
-        }
-
-        if($hostPlayer && $guestPlayer) {
-            throw new \Exception(Room::EXCEPTION_ENTER_PLAYER_FULL_MSG,Room::EXCEPTION_ENTER_PLAYER_FULL_CODE);
-        }
-
-        if (!$hostPlayer) {
-            #成为主机玩家
-            $newRoomPlayer = new RoomPlayer();
-            $newRoomPlayer->room_id = $roomId;
-            $newRoomPlayer->user_id = Yii::$app->user->id;
-            $newRoomPlayer->is_host = 1;
-            $newRoomPlayer->is_ready = 0;
-            $newRoomPlayer->save();
-        }else {
-            #成为客机玩家
-            $newRoomPlayer = new RoomPlayer();
-            $newRoomPlayer->room_id = $roomId;
-            $newRoomPlayer->user_id = Yii::$app->user->id;
-            $newRoomPlayer->is_host = 0;
-            $newRoomPlayer->is_ready = 0;
-            $newRoomPlayer->save();
-
-            //清空房主的房间信息缓存
-            $cache = Yii::$app->cache;
-            $cacheKey = 'room_info_no_update_'.$hostPlayer->user->id;
-            $cache->delete($cacheKey);
-        }
-
-        return true;
     }
 
     public static function getList($force = false) {
@@ -256,50 +218,6 @@ class Room extends ActiveRecord
         }
         //return [$success,$msg,$data];
         return [$success,$data];
-    }
-
-    public static function exitRoom(){
-        list($isInRoom, $roomId) = Room::isInRoom();
-
-        if(!$isInRoom){
-            throw new \Exception(Room::EXCEPTION_EXIT_NOT_IN_ROOM_MSG,Room::EXCEPTION_EXIT_NOT_IN_ROOM_CODE);
-        }
-
-        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
-
-        $rows_effect_count = RoomPlayer::deleteAll(['user_id'=>Yii::$app->user->id]);
-
-        if( $rows_effect_count === 0 ){
-            throw new \Exception(Room::EXCEPTION_EXIT_DELETE_FAILURE_MSG,Room::EXCEPTION_EXIT_DELETE_FAILURE_CODE);
-        }
-
-        $cache = Yii::$app->cache;
-        $cacheKey = 'room_info_no_update_'.Yii::$app->user->id;
-        $cache->delete($cacheKey);
-
-
-        #原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
-
-        if($isHost){
-            if($guestPlayer){
-                $guestPlayer->is_host = 1;
-                $guestPlayer->is_ready = 0;
-                $guestPlayer->save();
-
-                //清空房主(此时的房主是原先的访客)的房间信息缓存
-                $cacheKey = 'room_info_no_update_'.$guestPlayer->user_id;
-                $cache->delete($cacheKey);
-            }
-
-        }else{
-            if($hostPlayer){
-                //清空房主的房间信息缓存
-                $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
-                $cache->delete($cacheKey);
-            }
-        }
-
-        return true;
     }
 
     public static function info($mode='all',$force=false){
@@ -360,58 +278,129 @@ class Room extends ActiveRecord
         }
     }
 
-    public static function doReady(){
+    public static function enter($roomId){
+        list($isInRoom) = Room::isInRoom();
 
-        list($isInRoom, list($room, $isHost, $isReady)) = Room::isInRoom();
-
-        if(!$isInRoom){
-            return [false, '你不在房间中'];
+        if($isInRoom){
+            throw new \Exception(Room::EXCEPTION_ENTER_HAS_IN_ROOM_MSG,Room::EXCEPTION_ENTER_HAS_IN_ROOM_CODE);
         }
 
-        list($isInGame) = Game::isInGame();
+        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+
+        if ($room->password != '') {
+            //TODO 房间密码处理
+            throw new \Exception('房间有密码',12345);
+        }
+
+        if($hostPlayer && $guestPlayer) {
+            throw new \Exception(Room::EXCEPTION_ENTER_PLAYER_FULL_MSG,Room::EXCEPTION_ENTER_PLAYER_FULL_CODE);
+        }
+
+        if (!$hostPlayer) {
+            #成为主机玩家
+            $newRoomPlayer = new RoomPlayer();
+            $newRoomPlayer->room_id = $roomId;
+            $newRoomPlayer->user_id = Yii::$app->user->id;
+            $newRoomPlayer->is_host = 1;
+            $newRoomPlayer->is_ready = 0;
+            $newRoomPlayer->save();
+        }else {
+            #成为客机玩家
+            $newRoomPlayer = new RoomPlayer();
+            $newRoomPlayer->room_id = $roomId;
+            $newRoomPlayer->user_id = Yii::$app->user->id;
+            $newRoomPlayer->is_host = 0;
+            $newRoomPlayer->is_ready = 0;
+            $newRoomPlayer->save();
+
+            //清空房主的房间信息缓存
+            $cache = Yii::$app->cache;
+            $cacheKey = 'room_info_no_update_'.$hostPlayer->user->id;
+            $cache->delete($cacheKey);
+        }
+
+        return true;
+    }
+
+    public static function exitRoom(){
+
+        list($isInRoom, $roomId) = Room::isInRoom();
+
+        if(!$isInRoom){
+            throw new \Exception(Room::EXCEPTION_EXIT_NOT_IN_ROOM_MSG,Room::EXCEPTION_EXIT_NOT_IN_ROOM_CODE);
+        }
+
+        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+
+        $rows_effect_count = RoomPlayer::deleteAll(['user_id'=>Yii::$app->user->id]);
+
+        if( $rows_effect_count === 0 ){
+            throw new \Exception(Room::EXCEPTION_EXIT_DELETE_FAILURE_MSG,Room::EXCEPTION_EXIT_DELETE_FAILURE_CODE);
+        }
+
+        $cache = Yii::$app->cache;
+        $cacheKey = 'room_info_no_update_'.Yii::$app->user->id;
+        $cache->delete($cacheKey);
 
 
+        #原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
+
+        if($isHost){
+            if($guestPlayer){
+                $guestPlayer->is_host = 1;
+                $guestPlayer->is_ready = 0;
+                $guestPlayer->save();
+
+                //清空房主(此时的房主是原先的访客)的房间信息缓存
+                $cacheKey = 'room_info_no_update_'.$guestPlayer->user_id;
+                $cache->delete($cacheKey);
+            }
+
+        }else{
+            if($hostPlayer){
+                //清空房主的房间信息缓存
+                $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
+                $cache->delete($cacheKey);
+            }
+        }
+
+        return true;
+    }
+
+    public static function doReady(){
+
+        list($isInRoom, $roomId) = Room::isInRoom();
+
+        if(!$isInRoom){
+            throw new \Exception(Room::EXCEPTION_DO_READY_NOT_IN_ROOM_MSG,Room::EXCEPTION_DO_READY_NOT_IN_ROOM_CODE);
+        }
+
+        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+
+        if($isHost !== false){
+            throw new \Exception(Room::EXCEPTION_DO_READY_NOT_GUEST_PLAYER_MSG,Room::EXCEPTION_DO_READY_NOT_GUEST_PLAYER_CODE);
+        }
+
+        /*
+         * TODO 检查游戏状态
+         * list($isInGame) = Game::isInGame();
+        $game = Game::find()->where(['room_id'=>$room->id,'status'=>Game::STATUS_PLAYING])->one();*/
 
 
+        $guestPlayer->is_ready = $guestPlayer->is_ready > 0 ? 0 : 1;
+        if($guestPlayer->save()){
+            $cache = Yii::$app->cache;
 
+            //清空房主的房间信息缓存
+            $cacheKey = 'room_info_no_update_'.$hostPlayer->user->id;
+            $cache->delete($cacheKey);
 
-                $game = Game::find()->where(['room_id'=>$room->id,'status'=>Game::STATUS_PLAYING])->one();
-                if(!$game){
-                    $roomPlayerCount = RoomPlayer::find()->where(['room_id'=>$room->id])->count();
-                    if($roomPlayerCount==2){
-                        if($roomPlayer->is_host==0){
-                            $roomPlayer->is_ready = $roomPlayer->is_ready==1?0:1;
-                            if($roomPlayer->save()){
-
-                                $cache = Yii::$app->cache;
-
-                                //清空房主的房间信息缓存
-                                $hostPlayer = RoomPlayer::find()->where(['room_id' => $room->id,'is_host'=>1])->one();
-                                if($hostPlayer){
-
-                                    $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
-                                    $cache->set($cacheKey,false);
-                                }
-
-                                $cacheKey = 'room_info_no_update_'.$userId;
-                                $cache->set($cacheKey,false);
-
-                                $success = true;
-                            }else{
-                                $msg = '保存错误';
-                            }
-                        }else{
-                            $msg = '不是来宾角色';
-                        }
-                    }else{
-                        $msg = '房间中人数不等于2，数据错误';
-                    }
-                }else{
-                    $msg = '游戏已经开始';
-                }
-
-
-        return [$success,$msg];
+            $cacheKey = 'room_info_no_update_'.$guestPlayer->user->id;
+            $cache->delete($cacheKey);
+        }else{
+            throw new \Exception(Room::EXCEPTION_DO_READY_FAILURE_MSG,Room::EXCEPTION_DO_READY_FAILURE_CODE);
+        }
+        return true;
     }
 
 

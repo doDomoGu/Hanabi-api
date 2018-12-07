@@ -38,6 +38,14 @@ class MyActiveController extends ActiveController
         $code = $e->getCode();
         $code = $code === 0 ? 400 : $code;
         $msg = $e->getMessage();
+        $errorData = [
+            'code' => $code,
+            'msg'  => $msg,
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ];
+        Yii::error($errorData);
+
         return $this->sendError($code,$msg);
     }
 
