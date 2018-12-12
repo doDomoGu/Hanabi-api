@@ -114,8 +114,8 @@ class MyActiveController extends ActiveController
     public function actionOption(){
         $request = Yii::$app->request;
         if($request->isOptions){
-            Yii::$app->getResponse()->getHeaders()->set('Allow', 'POST GET PUT');
-            return $this->sendSuccess();
+            //Yii::$app->getResponse()->getHeaders()->set('Allow', 'POST GET PUT');
+            return;//$this->sendSuccess();
         }
     }
 }

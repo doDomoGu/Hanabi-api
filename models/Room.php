@@ -108,7 +108,7 @@ class Room extends ActiveRecord
 
     # 检查当前玩家是否在房间中， 且房间状态是否正确
     # 返回房间ID
-    protected static function isInRoom(){
+    public static function isInRoom(){
 
         $roomPlayers = RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->all();
 
@@ -172,7 +172,7 @@ class Room extends ActiveRecord
                 $isHost = false;
             }
 
-            if (!$isHost && $guestPlayer) {
+            if ($guestPlayer) {
                 $isReady = $guestPlayer->is_ready > 0;
             }
         }

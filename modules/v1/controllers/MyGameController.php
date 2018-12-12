@@ -52,15 +52,19 @@ class MyGameController extends MyActiveController
      */
 
     public function actionInfo(){
-        $return = $this->return;
-
         $mode = Yii::$app->request->get('mode','all');
 
         $force = !!Yii::$app->request->get('force',false);
 
-        list($return['success'],$return['msg'],$return['data']) = Game::getInfo($mode,$force);
+        try {
 
-        return $return;
+            return $this->sendSuccess(Game::info($mode, $force));
+
+        }catch ( \Exception $e) {
+
+            return $this->sendException($e);
+
+        }
     }
 
     /**
