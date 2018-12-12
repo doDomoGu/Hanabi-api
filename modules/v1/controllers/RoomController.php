@@ -26,7 +26,7 @@ class RoomController extends MyActiveController
         if($success){
             return $this->sendSuccess($data);
         }else{
-            return $this->sendError(0000,'获取房间列表错误');
+            return $this->sendError(1000,'获取房间列表错误');
         }
     }
 

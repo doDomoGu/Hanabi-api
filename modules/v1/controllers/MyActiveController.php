@@ -49,7 +49,7 @@ class MyActiveController extends ActiveController
         return $this->sendError($code,$msg);
     }
 
-    protected function sendError($errorCode=0000,$errorMsg='未知错误'){
+    protected function sendError($errorCode=1000,$errorMsg='未知错误'){
         return $this->sendResponse($errorCode, null, $errorMsg);
     }
 

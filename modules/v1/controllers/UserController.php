@@ -83,18 +83,18 @@ class UserController extends MyActiveController
         $password = (string) Yii::$app->request->post('password');
 
         if($username == '' || $password == ''){
-            return $this->sendError(0000,'提交数据错误');
+            return $this->sendError(1000,'提交数据错误');
         }
 
         $user = User::findByUsername($username);
 
         if(!$user) {
-            return $this->sendError(0000,'用户名错误');
+            return $this->sendError(1000,'用户名错误');
         }
 
 
         if($user->password != md5($password)){
-            return $this->sendError(0000,'密码错误');
+            return $this->sendError(1000,'密码错误');
         }
 
         $token = H_JWT::generateToken($user->id);
@@ -199,7 +199,7 @@ class UserController extends MyActiveController
             $auth = UserAuth::find()->where(['token'=>$token])->one();
 
             if(!$auth){
-                return $this->sendError(0000, 'Token数据错误(退出登录时)');
+                return $this->sendError(1000, 'Token数据错误(退出登录时)');
             }
 
             $auth->expired_time = $expired;
@@ -217,17 +217,17 @@ class UserController extends MyActiveController
         $auth = UserAuth::find()->where(['token'=>$token])->one();
 
         if(!$auth) {
-            return $this->sendError(0000, 'Auth数据错误');
+            return $this->sendError(1000, 'Auth数据错误');
         }
 
         if($auth->expired_time < date('Y-m-d H:i:s')){
-            return $this->sendError(0000, 'Auth过期');
+            return $this->sendError(1000, 'Auth过期');
         }
 
         $user = User::find()->where(['id' => $auth->user_id])->one();
 
         if (!$user){
-            return $this->sendError(0000, 'User数据错误');
+            return $this->sendError(1000, 'User数据错误');
         }
 
         $data['token'] = $token;
