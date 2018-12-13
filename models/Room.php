@@ -206,8 +206,10 @@ class Room extends ActiveRecord
                 ];
             };
             $data['list'] = $list;
-            $data['lastupdated'] = $sysLastUpdated;
-            $cache->set($userCacheKey,$sysLastUpdated);
+            $now = date('Y-m-d H:i:s');
+//            $data['lastupdated'] = $now;
+            $cache->set($userCacheKey,$now);
+            $cache->set($sysCacheKey,$now);
             return $data;
         }
     }
@@ -311,6 +313,9 @@ class Room extends ActiveRecord
             $cache->delete($cacheKey);
         }
 
+        $roomListSysCacheKey  = 'room_list_lastupdated';
+        $cache->set($roomListSysCacheKey, date('Y-m-d H:i:s'));
+
         return true;
     }
 
@@ -355,6 +360,9 @@ class Room extends ActiveRecord
                 $cache->delete($cacheKey);
             }
         }
+
+        $roomListSysCacheKey  = 'room_list_lastupdated';
+        $cache->set($roomListSysCacheKey, date('Y-m-d H:i:s'));
 
         return true;
     }
