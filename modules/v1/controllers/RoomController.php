@@ -21,15 +21,7 @@ class RoomController extends MyActiveController
     public function actionList(){
         $force = !!Yii::$app->request->get('force',false);
 
-        try {
-
-            return $this->sendSuccess(Room::getList($force));
-
-        }catch ( \Exception $e) {
-
-            return $this->sendException($e);
-
-        }
+        return Room::getList($force);
 
     }
 

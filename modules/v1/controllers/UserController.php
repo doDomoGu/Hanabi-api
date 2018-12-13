@@ -83,18 +83,23 @@ class UserController extends MyActiveController
         $password = (string) Yii::$app->request->post('password');
 
         if($username == '' || $password == ''){
-            return $this->sendError(1000,'提交数据错误');
+
+            throw new \Exception('提交数据错误',1000);
+
         }
 
         $user = User::findByUsername($username);
 
         if(!$user) {
-            return $this->sendError(1000,'用户名错误');
+
+            throw new \Exception('用户名错误',1000);
+            
         }
 
 
         if($user->password != md5($password)){
-            return $this->sendError(1000,'密码错误');
+
+            throw new \Exception('密码错误',1000);
         }
 
         $token = H_JWT::generateToken($user->id);
@@ -108,7 +113,7 @@ class UserController extends MyActiveController
         $data['userId'] = $user->id;
         $data['userInfo'] = $user->attributes;
 
-        return $this->sendSuccess($data);
+        return $data;
     }
 
 
@@ -190,7 +195,7 @@ class UserController extends MyActiveController
                 ]
             );
 
-            return $this->sendSuccess();
+            return null;
 
         } else {
             #非同步退出 只删除使用的Token
@@ -199,14 +204,16 @@ class UserController extends MyActiveController
             $auth = UserAuth::find()->where(['token'=>$token])->one();
 
             if(!$auth){
-                return $this->sendError(1000, 'Token数据错误(退出登录时)');
+
+                throw new \Exception('Token数据错误(退出登录时)',1000);
+
             }
 
             $auth->expired_time = $expired;
 
             $auth->save();
 
-            return $this->sendSuccess();
+            return null;
 
         }
     }
@@ -217,17 +224,22 @@ class UserController extends MyActiveController
         $auth = UserAuth::find()->where(['token'=>$token])->one();
 
         if(!$auth) {
-            return $this->sendError(1000, 'Auth数据错误');
+
+            throw new \Exception('Auth数据错误',1000);
         }
 
         if($auth->expired_time < date('Y-m-d H:i:s')){
-            return $this->sendError(1000, 'Auth过期');
+
+            throw new \Exception('Auth过期',1000);
+
         }
 
         $user = User::find()->where(['id' => $auth->user_id])->one();
 
         if (!$user){
-            return $this->sendError(1000, 'User数据错误');
+
+            throw new \Exception('User数据错误',1000);
+
         }
 
         $data['token'] = $token;
@@ -235,7 +247,8 @@ class UserController extends MyActiveController
         $data['userId'] = $user->id;
         $data['userInfo'] = $user->attributes;
 
-        return $this->sendSuccess($data);
+        return $data;
+
     }
 
 //    public function actionAdminLogin(){

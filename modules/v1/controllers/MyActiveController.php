@@ -57,6 +57,20 @@ class MyActiveController extends ActiveController
         return $this->sendResponse(0 , $data, null);
     }
 
+    public function runAction($id, $params = [])
+    {
+        try {
+
+            return $this->sendSuccess(parent::runAction($id, $params));
+
+        }catch ( \Exception $e) {
+
+            return $this->sendException($e);
+
+        }
+
+    }
+
     public function behaviors()
     {
         $behaviors = parent::behaviors();

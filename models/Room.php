@@ -273,6 +273,8 @@ class Room extends ActiveRecord
     }
 
     public static function enter($roomId){
+        $cache = Yii::$app->cache;
+
         list($isInRoom) = Room::isInRoom();
 
         if($isInRoom){
@@ -308,7 +310,6 @@ class Room extends ActiveRecord
             $newRoomPlayer->save();
 
             //清空房主的房间信息缓存
-            $cache = Yii::$app->cache;
             $cacheKey = 'room_info_no_update_'.$hostPlayer->user->id;
             $cache->delete($cacheKey);
         }

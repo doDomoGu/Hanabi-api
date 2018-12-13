@@ -36,15 +36,8 @@ class MyRoomController extends MyActiveController
 
         $force = Yii::$app->request->get('force',false);
 
-        try {
+        return Room::info($mode, $force);
 
-            return $this->sendSuccess(Room::info($mode, $force));
-
-        }catch ( \Exception $e) {
-
-            return $this->sendException($e);
-
-        }
     }
 
 
@@ -62,42 +55,24 @@ class MyRoomController extends MyActiveController
     public function actionEnter(){
         $roomId = (int) Yii::$app->request->post('roomId');
 
-        try {
-            Room::enter($roomId);
+        Room::enter($roomId);
 
-            return $this->sendSuccess();
-
-        }catch ( \Exception $e) {
-
-            return $this->sendException($e);
-
-        }
+        return null;
     }
 
     public function actionExit(){
-        try {
-            Room::exitRoom();
 
-            return $this->sendSuccess();
+        Room::exitRoom();
 
-        }catch ( \Exception $e) {
-
-            return $this->sendException($e);
-
-        }
+        return null;
     }
 
     public function actionDoReady(){
-        try {
-            Room::doReady();
 
-            return $this->sendSuccess();
+        Room::doReady();
 
-        }catch ( \Exception $e) {
+        return null;
 
-            return $this->sendException($e);
-
-        }
     }
 
 }
