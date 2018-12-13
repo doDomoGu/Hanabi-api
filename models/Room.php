@@ -182,11 +182,6 @@ class Room extends ActiveRecord
     }
 
     public static function getList($force = false) {
-        $success = false;
-        //$msg = '';
-        $data = [
-            'list' => []
-        ];
 
         $userId = Yii::$app->user->id;
         $cache = Yii::$app->cache;
@@ -196,8 +191,7 @@ class Room extends ActiveRecord
         $sysLastUpdated = $cache->get($sysCacheKey); // 系统的房间列表的最后缓存更新时间
         //如果 用户的最后缓存更新时间 < 系统的最后缓存更新时间  就要重新读取数据 并将 用户时间更新为系统时间
         if (!$force && $userLastUpdated!='' && $userLastUpdated >= $sysLastUpdated) {
-            $data = ['noUpdate'=>true];
-            $success = true;
+            return ['noUpdate'=>true];
         } else {
             $rooms = Room::find()->all();
             $list = [];
@@ -214,10 +208,8 @@ class Room extends ActiveRecord
             $data['list'] = $list;
             $data['lastupdated'] = $sysLastUpdated;
             $cache->set($userCacheKey,$sysLastUpdated);
-            $success = true;
+            return $data;
         }
-        //return [$success,$msg,$data];
-        return [$success,$data];
     }
 
     public static function info($mode='all',$force=false){
