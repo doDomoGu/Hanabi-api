@@ -93,7 +93,7 @@ class UserController extends MyActiveController
         if(!$user) {
 
             throw new \Exception('用户名错误',1000);
-            
+
         }
 
 
@@ -195,8 +195,6 @@ class UserController extends MyActiveController
                 ]
             );
 
-            return null;
-
         } else {
             #非同步退出 只删除使用的Token
             $token = Yii::$app->request->headers->get('X-Token');
@@ -212,8 +210,6 @@ class UserController extends MyActiveController
             $auth->expired_time = $expired;
 
             $auth->save();
-
-            return null;
 
         }
     }

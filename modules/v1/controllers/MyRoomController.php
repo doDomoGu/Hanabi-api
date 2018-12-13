@@ -56,22 +56,16 @@ class MyRoomController extends MyActiveController
         $roomId = (int) Yii::$app->request->post('roomId');
 
         Room::enter($roomId);
-
-        return null;
     }
 
     public function actionExit(){
 
         Room::exitRoom();
-
-        return null;
     }
 
     public function actionDoReady(){
 
         Room::doReady();
-
-        return null;
 
     }
 

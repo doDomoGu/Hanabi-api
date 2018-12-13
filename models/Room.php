@@ -117,7 +117,7 @@ class Room extends ActiveRecord
         }
 
         if (count($roomPlayers) == 0){
-            return [false, null];
+            return [false, -1];
         }
 
         $roomPlayer = $roomPlayers[0];

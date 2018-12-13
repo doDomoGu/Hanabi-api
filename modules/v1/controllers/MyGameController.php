@@ -20,11 +20,9 @@ class MyGameController extends MyActiveController
 
 
     public function actionStart(){
-        $return = $this->return;
 
-        list($return['success'],$return['msg']) = Game::start();
+        Game::start();
 
-        return $return;
     }
     /**
      * @apiDefine ParamAuthToken
@@ -56,15 +54,8 @@ class MyGameController extends MyActiveController
 
         $force = !!Yii::$app->request->get('force',false);
 
-        try {
+        return Game::info($mode, $force);
 
-            return $this->sendSuccess(Game::info($mode, $force));
-
-        }catch ( \Exception $e) {
-
-            return $this->sendException($e);
-
-        }
     }
 
     /**

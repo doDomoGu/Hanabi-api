@@ -89,11 +89,20 @@ class Game extends ActiveRecord
     }
 
     public static function isInGame(){
-        list($isInRoom, list($room)) = Room::isInRoom();
+
+        list($isInRoom, $roomId) = Room::isInRoom();
+
+        if(!$isInRoom) {
+
+            return [false, -1];
+
+        }
+
+        $game = Game::find()->where(['room_id'=>$roomId,'status'=>Game::STATUS_PLAYING])->one();
 
 
 
-        $game = Game::find()->where(['room_id'=>$room->id,'status'=>Game::STATUS_PLAYING])->one();
+
     }
 
 
@@ -261,8 +270,6 @@ class Game extends ActiveRecord
 
     public static function info($mode='all',$force=false){
 
-        return ['isPlaying'=> false ];
-
         $cache = Yii::$app->cache;
 
         $cacheKey  = 'game_info_no_update_'.Yii::$app->user->id;  //存在则不更新游戏信息
@@ -278,6 +285,15 @@ class Game extends ActiveRecord
 
         #判断是否在游戏中， 获得房间ID
         list($isInGame, $roomId) = Game::isInGame();
+
+        if(!$isInGame) {
+
+            return ['roomId' => -1];
+
+        }
+
+        
+
 
 
         $room_player = RoomPlayer::find()->where(['user_id' => $user_id])->one();
