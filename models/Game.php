@@ -240,12 +240,14 @@ class Game extends ActiveRecord
         $game->score = 0;
 
         if($game->save()){
-            if(GameCard::initLibrary($room_id)){
-                for($i=0;$i<5;$i++){ //主机/客机玩家 各模五张牌
-                    GameCard::drawCard($room_id,true);
-                    GameCard::drawCard($room_id,false);
-                }
+
+            GameCard::initLibrary($room_id);
+
+            for($i=0;$i<5;$i++){ //主机/客机玩家 各模五张牌
+                GameCard::drawCard($room_id,true);
+                GameCard::drawCard($room_id,false);
             }
+
         }else{
             throw new \Exception(Game::EXCEPTION_CREATE_GAME_FAILURE_MSG,Game::EXCEPTION_CREATE_GAME_FAILURE_CODE);
         }
@@ -310,54 +312,37 @@ class Game extends ActiveRecord
 
         if(!$isInGame) {
 
-            return ['roomId' => -1];
+            return ['isPlaying'=>false,'roomId' => $roomId];
 
         }
 
+        $data = [];
+
+        $data['isPlaying'] = true;
+        $data['roomId'] = $roomId;
+
+        if ($mode == 'all') {
+
+            $game = Game::find()->where(['room_id'=>$roomId])->one();
+            
+            $data['game'] = [
+                'roundNum' => $game->round_num,
+                'roundPlayerIsHost' => $game->round_player_is_host == 1,
+            ];
+
+            $cardInfo = Game::getCardInfo($game->room_id);
+
+            $data['card'] = $cardInfo;
 
 
+            list(, , $data['log']) = HistoryLog::getList($game->room_id);
 
+            $data['game']['lastUpdated'] = HistoryLog::getLastUpdate($game->room_id);
 
-
-
-        $room_player = RoomPlayer::find()->where(['user_id' => $user_id])->one();
-        if ($room_player) {
-            $game = Game::find()->where(['room_id' => $room_player->room_id])->one();
-            if ($game) {
-                $data['isPlaying'] = true;
-                if ($mode == 'all') {
-                    $gameCardCount = GameCard::find()->where(['room_id' => $game->room_id])->count();
-                    if ($gameCardCount == Card::CARD_NUM_ALL) {
-
-                        $data['game'] = [
-                            'roundNum' => $game->round_num,
-                            'roundPlayerIsHost' => $game->round_player_is_host == 1,
-                        ];
-
-                        $cardInfo = self::getCardInfo($game->room_id);
-                        $data['card'] = $cardInfo;
-
-
-                        list(, , $data['log']) = HistoryLog::getList($game->room_id);
-
-                        $data['game']['lastUpdated'] = HistoryLog::getLastUpdate($game->room_id);
-
-                        $cache->set($cache_key, true);
-                        /*}*/
-
-                        $success = true;
-                    } else {
-                        $msg = '总卡牌数错误';
-                    }
-                }else{
-                    $success = true;
-                }
-            } else {
-                $msg = '你所在房间游戏未开始，错误';
-            }
-        } else {
-            $msg = '你不在房间中，错误';
+            $cache->set($cacheKey, true);
         }
+
+        return $data;
     }
 
     public static function getCardInfo($room_id){
@@ -369,15 +354,13 @@ class Game extends ActiveRecord
             //获取当前玩家角色  只获取对手手牌信息（花色和数字）  自己的手牌只获取排序信息
             $room_player = RoomPlayer::find()->where(['user_id' => $user_id, 'room_id' => $game->room_id])->one();
             if ($room_player) {
-                $player_is_host = $room_player->is_host;
-                //房主手牌 序号 0~4
-                $type_orders_is_host = [0,1,2,3,4];
-                //来宾手牌 序号5~9
-                $type_orders_not_host = [5,6,7,8,9];
+                $player_is_host = $room_player->is_host == 1;
+
+                $card_type = $player_is_host ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
 
 
-                $hostCard = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_HAND, 'type_ord' => $type_orders_is_host])->orderBy('type_ord asc')->all();
-                $guestCard = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_HAND, 'type_ord' => $type_orders_not_host])->orderBy('type_ord asc')->all();
+                $hostCard = GameCard::find()->where(['room_id' => $room_id, 'type' => $card_type])->orderBy('type_ord asc')->all();
+                $guestCard = GameCard::find()->where(['room_id' => $room_id, 'type' => $card_type])->orderBy('type_ord asc')->all();
 
 
                 $hostHands = [];
@@ -420,7 +403,7 @@ class Game extends ActiveRecord
 
 
                 $libraryCardCount = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->count();
-                $tableCard = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_SUCCESSED])->orderBy('type_ord asc')->all();
+                $tableCard = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_SUCCEEDED])->orderBy('type_ord asc')->all();
                 $discardCardCount = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_DISCARDED])->orderBy('type_ord asc')->count();
 
 
@@ -468,7 +451,7 @@ class Game extends ActiveRecord
                         list($discard_success,$card_ord, $msg) =GameCard::discardCard($room_id,$ord);
                         if($discard_success){
                             //恢复一个提示数
-                            self::recoverCue($room_id);
+                            Game::recoverCue($room_id);
 
                             //插入日志 record
                             //TODO
@@ -487,7 +470,7 @@ class Game extends ActiveRecord
                             }
 
                             //交换(下一个)回合
-                            self::changeRoundPlayer($room_id);
+                            Game::changeRoundPlayer($room_id);
 
                             $cache = Yii::$app->cache;
                             $cache_key = 'game_info_no_update_'.$user_id;
@@ -540,14 +523,14 @@ class Game extends ActiveRecord
 
                             if($data['play_result']){
                                 //恢复一个提示数
-                                self::recoverCue($game->room_id);
+                                Game::recoverCue($game->room_id);
                             }else{
                                 //消耗一次机会
-                                self::useChance($game->room_id);
+                                Game::useChance($game->room_id);
 
-                                $result = self::checkGame();
+                                $result = Game::checkGame();
                                 if(!$result){
-                                    self::end();
+                                    Game::end();
                                 }
                             }
 
@@ -569,7 +552,7 @@ class Game extends ActiveRecord
 
 
                             //交换(下一个)回合
-                            self::changeRoundPlayer($game->room_id);
+                            Game::changeRoundPlayer($game->room_id);
 
 
                             $cache = Yii::$app->cache;
@@ -634,10 +617,10 @@ class Game extends ActiveRecord
                             }
 
                             //消耗一个提示数
-                            self::useCue($game->room_id);
+                            Game::useCue($game->room_id);
 
                             //交换(下一个)回合
-                            self::changeRoundPlayer($game->room_id);
+                            Game::changeRoundPlayer($game->room_id);
 
                             $cache = Yii::$app->cache;
                             $cache_key = 'game_info_no_update_'.$user_id;
@@ -691,13 +674,13 @@ class Game extends ActiveRecord
 
                         $rand = $room_player->is_host == 1 ? rand(5,9) : rand(0,4);
 
-                        return self::cue($rand,rand(0,1) ? 'num':'color');
+                        return Game::cue($rand,rand(0,1) ? 'num':'color');
 
                     }else{
 
                         $rand = $room_player->is_host != 1 ? rand(5,9) : rand(0,4);
 
-                        return self::discard($rand);
+                        return Game::discard($rand);
 
                     }
                 }else{
@@ -716,7 +699,7 @@ class Game extends ActiveRecord
     private static function recoverCue($room_id){
         $game = Game::find()->where(['room_id'=>$room_id])->one();
         if($game){
-            if($game->cue_num < self::DEFAULT_CUE){
+            if($game->cue_num < Game::DEFAULT_CUE){
                 $game->cue_num = $game->cue_num + 1;
                 if($game->save())
                     return true;
