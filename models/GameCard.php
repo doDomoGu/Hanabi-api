@@ -83,7 +83,7 @@ class GameCard extends ActiveRecord
         $return = false;
         $game = Game::find()->where(['room_id'=>$room_id,'status'=>Game::STATUS_PLAYING])->one();
         if($game){
-            $cardCount = self::find()->where(['room_id'=>$game->room_id])->count();
+            $cardCount = GameCard::find()->where(['room_id'=>$game->room_id])->count();
             if($cardCount==0){
                 $cardArr = [];
                 foreach(Card::$colors as $k=>$v){
@@ -96,12 +96,12 @@ class GameCard extends ActiveRecord
                 $insertArr = [];
                 $ord = 0;
                 foreach($cardArr as $c){
-                    $insertArr[] = [$room_id,self::TYPE_IN_LIBRARY,$ord,$c[0],$c[1],$ord,date('Y-m-d H:i:s')];
+                    $insertArr[] = [$room_id,GameCard::TYPE_IN_LIBRARY,$ord,$c[0],$c[1],$ord,date('Y-m-d H:i:s')];
                     $ord++;
                 }
 
                 Yii::$app->db->createCommand()->batchInsert(
-                    self::tableName(),
+                    GameCard::tableName(),
                     ['room_id','type','type_ord','color','num','ord','updated_at'],
                     $insertArr
                 )->execute();
@@ -129,24 +129,18 @@ class GameCard extends ActiveRecord
     public static function drawCard($room_id,$player_is_host){
         $return = false;
         //统计牌的总数 应该为50张
-        $count = self::find()->where(['room_id'=>$room_id])->count();
+        $count = GameCard::find()->where(['room_id'=>$room_id])->count();
         if($count==Card::CARD_NUM_ALL){
             //选取牌库上的第一张牌
-            $card = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->one();
+            $card = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->one();
             if($card){
-                //根据player_is_host 限制type_ord 范围
-                if($player_is_host==1){
-                    //房主 序号 0~4
-                    $type_orders = self::$host_hands_type_ord;
-                }else{
-                    //来宾 序号5~9
-                    $type_orders = self::$guest_hands_type_ord;
-                }
+                $card_type = $player_is_host ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
+
                 //最多5张手牌
-                $player_card_count = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_orders])->count();
+                $player_card_count = GameCard::find()->where(['room_id'=>$room_id,'type'=>$card_type])->count();
                 if($player_card_count<5){ //小于5张才能摸牌
                     //查找玩家手上排序最大的牌，确定摸牌的序号 type_ord
-                    $the_biggest_card = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_orders])->orderBy('type_ord desc')->one();
+                    $the_biggest_card = GameCard::find()->where(['room_id'=>$room_id,'type'=>$card_type])->orderBy('type_ord desc')->one();
                     if($the_biggest_card){
                         $ord = $the_biggest_card->type_ord + 1;
                     }else{
@@ -156,7 +150,7 @@ class GameCard extends ActiveRecord
                             $ord = 5;
                         }
                     }
-                    $card->type = self::TYPE_IN_HAND;
+                    $card->type = $card_type;
                     $card->type_ord = $ord;
                     if($card->save()){
                         $return = true;
@@ -180,29 +174,29 @@ class GameCard extends ActiveRecord
         $card_ord = -1;
         $msg = '';
         //统计牌的总数 应该为50张
-        $count = self::find()->where(['room_id'=>$room_id])->count();
+        $count = GameCard::find()->where(['room_id'=>$room_id])->count();
         if($count==Card::CARD_NUM_ALL){
             if(RoomPlayer::isHostPlayer()){
-                $type_ords = self::$host_hands_type_ord;
+                $type_ords = GameCard::$host_hands_type_ord;
             }else{
-                $type_ords = self::$guest_hands_type_ord;
+                $type_ords = GameCard::$guest_hands_type_ord;
             }
 
             if(in_array($type_ord,$type_ords)){
 
                 //所选择的牌
-                $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
+                $cardSelected = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
                 if($cardSelected){
                     $card_ord = $cardSelected->ord;
                     //将牌丢进弃牌堆
-                    $cardSelected->type = self::TYPE_DISCARDED;
-                    $cardSelected->type_ord = self::getInsertDiscardOrd($room_id);
+                    $cardSelected->type = GameCard::TYPE_DISCARDED;
+                    $cardSelected->type_ord = GameCard::getInsertDiscardOrd($room_id);
                     if($cardSelected->save()){
-                        if(self::moveHandCardsByLackOfCard($room_id,$type_ord)){
+                        if(GameCard::moveHandCardsByLackOfCard($room_id,$type_ord)){
                             //给这个玩家摸一张牌
-                            if(in_array($type_ord,self::$host_hands_type_ord)){
+                            if(in_array($type_ord,GameCard::$host_hands_type_ord)){
                                 GameCard::drawCard($room_id,true);
-                            }else if(in_array($type_ord,self::$guest_hands_type_ord)){
+                            }else if(in_array($type_ord,GameCard::$guest_hands_type_ord)){
                                 GameCard::drawCard($room_id,false);
                             }
                             $success = true;
@@ -230,21 +224,21 @@ class GameCard extends ActiveRecord
         $card_ord = -1;
         $msg = '';
         //统计牌的总数 应该为50张
-        $count = self::find()->where(['room_id'=>$room_id])->count();
+        $count = GameCard::find()->where(['room_id'=>$room_id])->count();
         if($count==Card::CARD_NUM_ALL){
             if(RoomPlayer::isHostPlayer()){
-                $type_ords = self::$host_hands_type_ord;
+                $type_ords = GameCard::$host_hands_type_ord;
             }else{
-                $type_ords = self::$guest_hands_type_ord;
+                $type_ords = GameCard::$guest_hands_type_ord;
             }
 
             if(in_array($type_ord,$type_ords)){
                 //所选择的牌
-                $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
+                $cardSelected = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
                 if($cardSelected){
                     $game = Game::find()->where(['room_id'=>$room_id])->one();
                     if($game){
-                        $cardsSuccessTop = self::getCardsSuccessTop($room_id);
+                        $cardsSuccessTop = GameCard::getCardsSuccessTop($room_id);
 
                         $colorTopNum = $cardsSuccessTop[$cardSelected->color]; //对应花色的目前成功的最大数值
                         $num = Card::$numbers[$cardSelected->num];              //选中牌的数值
@@ -258,13 +252,13 @@ class GameCard extends ActiveRecord
 
                             $result = true;
                         }else{
-                            $cardSelected->type = self::TYPE_DISCARDED;
-                            $cardSelected->type_ord = self::getInsertDiscardOrd($room_id);
+                            $cardSelected->type = GameCard::TYPE_DISCARDED;
+                            $cardSelected->type_ord = GameCard::getInsertDiscardOrd($room_id);
                             $cardSelected->save();
                             $result = false;
                         }
                         $card_ord = $cardSelected->ord;
-                        self::moveHandCardsByLackOfCard($room_id,$type_ord);
+                        GameCard::moveHandCardsByLackOfCard($room_id,$type_ord);
                         $success = true;
                     }else{
                         $msg='游戏未开始';
@@ -287,23 +281,23 @@ class GameCard extends ActiveRecord
         $cards_ord = [];
         $msg = '';
         //统计牌的总数 应该为50张
-        $count = self::find()->where(['room_id'=>$room_id])->count();
+        $count = GameCard::find()->where(['room_id'=>$room_id])->count();
         if($count==Card::CARD_NUM_ALL){
 
             $game = Game::find()->where(['room_id'=>$room_id])->one();
             if($game){
-                $hands_ord = $game->round_player_is_host?self::$guest_hands_type_ord:self::$host_hands_type_ord;
+                $hands_ord = $game->round_player_is_host?GameCard::$guest_hands_type_ord:GameCard::$host_hands_type_ord;
 
                 if(in_array($type_ord,$hands_ord)){
                     //所选择的牌
-                    $cardSelected = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
+                    $cardSelected = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
                     if($cardSelected){
 
                         if($type=='color'){
-                            $cardCueList = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'color'=>$cardSelected->color])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
+                            $cardCueList = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'color'=>$cardSelected->color])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
 
                         }elseif($type=='num'){
-                            $cardCueList = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND])->andWhere(['in','num',Card::$numbers2[Card::$numbers[$cardSelected->num]]])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
+                            $cardCueList = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND])->andWhere(['in','num',Card::$numbers2[Card::$numbers[$cardSelected->num]]])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
                         }else{
                             $msg = '提示类型不正确';
                         }
@@ -334,8 +328,8 @@ class GameCard extends ActiveRecord
 
     //交换手牌顺序
     /*public static function changePlayerCardOrd($game_id,$player,$cardId1,$cardId2){
-        $card1 = self::find()->where(['game_id'=>$game_id,'type'=>self::TYPE_IN_PLAYER,'player'=>$player,'id'=>$cardId1,'status'=>1])->one();
-        $card2 = self::find()->where(['game_id'=>$game_id,'type'=>self::TYPE_IN_PLAYER,'player'=>$player,'id'=>$cardId2,'status'=>1])->one();
+        $card1 = GameCard::find()->where(['game_id'=>$game_id,'type'=>GameCard::TYPE_IN_PLAYER,'player'=>$player,'id'=>$cardId1,'status'=>1])->one();
+        $card2 = GameCard::find()->where(['game_id'=>$game_id,'type'=>GameCard::TYPE_IN_PLAYER,'player'=>$player,'id'=>$cardId2,'status'=>1])->one();
         if($card1 && $card2){
             $card1->ord = $card2->ord;
             $card2->ord = $card1->ord;
@@ -356,21 +350,21 @@ class GameCard extends ActiveRecord
             'table'=>[],
             'discard'=>[],
         ];
-        $gameCard = self::find()->where(['game_id'=>$game_id,'status'=>1])->orderBy('ord asc')->all();
+        $gameCard = GameCard::find()->where(['game_id'=>$game_id,'status'=>1])->orderBy('ord asc')->all();
         if(count($gameCard)==50){
             foreach($gameCard as $gc){
                 $temp = ['id'=>$gc->id,'color'=>$gc->color,'num'=>$gc->num];
-                if($gc->type==self::TYPE_IN_PLAYER){
+                if($gc->type==GameCard::TYPE_IN_PLAYER){
                     if($gc->player==1){
                         $cardInfo['player_1'][]=$temp;
                     }elseif($gc->player==2){
                         $cardInfo['player_2'][]=$temp;
                     }
-                }elseif($gc->type==self::TYPE_IN_LIBRARY){
+                }elseif($gc->type==GameCard::TYPE_IN_LIBRARY){
                     $cardInfo['library'][]=$temp;
-                }elseif($gc->type==self::TYPE_ON_TABLE){
+                }elseif($gc->type==GameCard::TYPE_ON_TABLE){
                     $cardInfo['table'][]=$temp;
-                }elseif($gc->type==self::TYPE_IN_DISCARD){
+                }elseif($gc->type==GameCard::TYPE_IN_DISCARD){
                     $cardInfo['discard'][]=$temp;
                 }
             }
@@ -404,17 +398,17 @@ class GameCard extends ActiveRecord
     private static function moveHandCardsByLackOfCard($room_id,$ord){
         //根据type_ord 判断是否is_host
         $type_ords = [];
-        if(in_array($ord,self::$host_hands_type_ord)){
-            $type_ords = self::$host_hands_type_ord;
-        }else if(in_array($ord,self::$guest_hands_type_ord)){
-            $type_ords = self::$guest_hands_type_ord;
+        if(in_array($ord,GameCard::$host_hands_type_ord)){
+            $type_ords = GameCard::$host_hands_type_ord;
+        }else if(in_array($ord,GameCard::$guest_hands_type_ord)){
+            $type_ords = GameCard::$guest_hands_type_ord;
         }
 
 
         if(!empty($type_ords)){
             //将排序靠后的手牌都往前移动
             for($i = $ord+1;$i<=max($type_ords);$i++){
-                $otherCard = self::find()->where(['room_id'=>$room_id,'type'=>self::TYPE_IN_HAND,'type_ord'=>$i])->one();
+                $otherCard = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'type_ord'=>$i])->one();
                 if($otherCard){
                     $otherCard->type_ord = $otherCard->type_ord - 1;
                     $otherCard->save();

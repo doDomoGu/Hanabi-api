@@ -31,6 +31,34 @@ class Game extends ActiveRecord
     const STATUS_PLAYING = 1;
     const STATUS_END = 2;
 
+    const EXCEPTION_NOT_IN_ROOM_CODE  = 10001;
+    const EXCEPTION_NOT_IN_ROOM_MSG   = '在判断是否在进行游戏时，发现玩家根本不在房间中';
+    const EXCEPTION_WRONG_CHANCE_NUM_CODE  = 10002;
+    const EXCEPTION_WRONG_CHANCE_NUM_MSG   = '机会数错误';
+    const EXCEPTION_WRONG_CUE_NUM_CODE  = 10003;
+    const EXCEPTION_WRONG_CUE_NUM_MSG   = '提示数错误';
+    const EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE  = 10004;
+    const EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG   = '不在游戏中，但是有卡牌存在';
+    const EXCEPTION_WRONG_CARD_NUM_ALL_CODE  = 10005;
+    const EXCEPTION_WRONG_CARD_NUM_ALL_MSG   = '游戏中，但是总卡牌数不对';
+    const EXCEPTION_GUEST_PLAYER_NOT_READY_CODE  = 10006;
+    const EXCEPTION_GUEST_PLAYER_NOT_READY_MSG   = '游戏中，但是客机玩家没有准备';
+    const EXCEPTION_WRONG_PLAYERS_CODE  = 10007;
+    const EXCEPTION_WRONG_PLAYERS_MSG   = '游戏中，玩家信息错误';
+    const EXCEPTION_START_GAME_HAS_STARTED_CODE  = 10008;
+    const EXCEPTION_START_GAME_HAS_STARTED_MSG   = '开始游戏操作，但是游戏已经开始了';
+    const EXCEPTION_START_GAME_WRONG_PLAYERS_CODE  = 10009;
+    const EXCEPTION_START_GAME_WRONG_PLAYERS_MSG   = '开始游戏操作，房间内游戏玩家信息错误';
+    const EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE  = 10010;
+    const EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_MSG   = '开始游戏操作，客机玩家没有准备';
+    const EXCEPTION_START_GAME_WRONG_ROOM_CODE  = 10011;
+    const EXCEPTION_START_GAME_WRONG_ROOM_MSG   = '开始游戏操作，房间不存在';
+    const EXCEPTION_CREATE_GAME_FAILURE_CODE  = 10012;
+    const EXCEPTION_CREATE_GAME_FAILURE_MSG   = '开始游戏操作，创建失败';
+    const EXCEPTION_CREATE_HISTORY_FAILURE_CODE  = 10013;
+    const EXCEPTION_CREATE_HISTORY_FAILURE_MSG   = '开始游戏操作，创建游戏记录失败';
+
+
     /**
      * @inheritdoc
      */
@@ -92,125 +120,131 @@ class Game extends ActiveRecord
 
         list($isInRoom, $roomId) = Room::isInRoom();
 
+        #不在房间中 抛出异常
         if(!$isInRoom) {
-
-            return [false, -1];
-
+            throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
         }
 
-        $game = Game::find()->where(['room_id'=>$roomId,'status'=>Game::STATUS_PLAYING])->one();
+        $game = Game::find()->where(['room_id'=>$roomId])->one();
+
+        $gameCardCount = GameCard::find()->where(['room_id'=>$roomId])->count();
+
+        #不在游戏中
+        if(!$game) {
+
+            #不在游戏中，但是有卡牌存在
+            if($gameCardCount > 0) {
+                throw new \Exception(Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG,Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE);
+            }
+
+            #返回false 和 房间号
+            return [false, $roomId];
+        }
+
+        #在游戏中
+        #以下是检查游戏状态
+
+        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+
+        if(!$hostPlayer || !$guestPlayer) {
+            throw new \Exception(Game::EXCEPTION_WRONG_PLAYERS_MSG,Game::EXCEPTION_WRONG_PLAYERS_CODE);
+        }
+
+        if(!$isReady) {
+            throw new \Exception(Game::EXCEPTION_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_GUEST_PLAYER_NOT_READY_CODE);
+        }
+
+        if($game->chance_num < 1){
+            throw new \Exception(Game::EXCEPTION_WRONG_CHANCE_NUM_MSG,Game::EXCEPTION_WRONG_CHANCE_NUM_CODE);
+        }
+
+        if($game->cue_num < 0){
+            throw new \Exception(Game::EXCEPTION_WRONG_CUE_NUM_MSG,Game::EXCEPTION_WRONG_CUE_NUM_CODE);
+        }
+
+        #游戏中，但是总卡牌数不对
+        if($gameCardCount <> Card::CARD_NUM_ALL){
+            throw new \Exception(Game::EXCEPTION_WRONG_CARD_NUM_ALL_MSG,Game::EXCEPTION_WRONG_CARD_NUM_ALL_CODE);
+        }
 
 
-
+        return [true, $roomId];
 
     }
 
 
     public static function start(){
-        $success = false;
-        $msg = '';
-        $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            //只有玩家1可以进行"开始游戏操作"
-            if($room_player->is_host==1){
-                $room = Room::find()->where(['id'=>$room_player->room_id])->one();
-                if($room){
-                    //存在对应的game 即表示有开始的游戏
-                    $game = Game::find()->where(['room_id'=>$room->id])->one();
-                    if(!$game){
-                        $room_player_count = RoomPlayer::find()->where(['room_id'=>$room->id])->count();
-                        if($room_player_count == 2){
-                            $guest_player = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>0])->one();
-                            if($guest_player){
-                                if($guest_player->is_ready==1){
-                                    if(self::createOne($room->id)){
 
-                                        //新建log 相关
-                                        $history = new History();
-                                        $history->room_id = $room->id;
-                                        $history->status = History::STATUS_PLAYING;
-                                        $history->score = 0;
-                                        if($history->save()){
-                                            $historyPlayer = new HistoryPlayer();
-                                            $historyPlayer->history_id = $history->id;
-                                            $historyPlayer->user_id = $room_player->user_id;
-                                            $historyPlayer->is_host = 1;
-                                            $historyPlayer->save();
+        list($isInGame, $roomId) = Game::isInGame();
 
-                                            $historyPlayer = new HistoryPlayer();
-                                            $historyPlayer->history_id = $history->id;
-                                            $historyPlayer->user_id = $guest_player->user_id;
-                                            $historyPlayer->is_host = 0;
-                                            $historyPlayer->save();
-                                        }
-
-                                        $roomPlayers = RoomPlayer::find()->where(['room_id' => $room->id])->all();
-                                        $cache = Yii::$app->cache;
-                                        foreach ($roomPlayers as $player) {
-                                            $cacheKey = 'room_info_no_update_'.$player->user_id;
-                                            $cache->set($cacheKey,false);
-                                        }
-
-                                        $success = true;
-                                    }else{
-                                        $msg = '创建游戏失败';
-                                    }
-                                }else{
-                                    $msg = '来宾玩家的状态不是"已准备"';
-                                }
-                            }else{
-                                $msg = '来宾玩家不存在';
-                            }
-                        }else{
-                            $msg = '房间中人数不等于2，数据错误';
-                        }
-                    }else{
-                        $msg = '游戏已开始';
-                    }
-                }else{
-                    $msg = '房间不存在！';
-                }
-            }else{
-                $msg = '玩家角色错误';
-            }
-        }else{
-            $msg = '你不在房间中，错误';
+        if($isInGame) {
+            throw new \Exception(Game::EXCEPTION_START_GAME_HAS_STARTED_MSG,Game::EXCEPTION_START_GAME_HAS_STARTED_CODE);
         }
 
-        return [$success,$msg];
+        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+
+        if(!$hostPlayer || !$guestPlayer) {
+            throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_PLAYERS_MSG,Game::EXCEPTION_START_GAME_WRONG_PLAYERS_CODE);
+        }
+
+        if(!$isReady) {
+            throw new \Exception(Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE);
+        }
+
+        Game::createOne($roomId);
+
+        //新建log 相关
+        $history = new History();
+        $history->room_id = $room->id;
+        $history->status = History::STATUS_PLAYING;
+        $history->score = 0;
+        if($history->save()){
+            $historyPlayer = new HistoryPlayer();
+            $historyPlayer->history_id = $history->id;
+            $historyPlayer->user_id = $hostPlayer->user_id;
+            $historyPlayer->is_host = 1;
+            $historyPlayer->save();
+
+            $historyPlayer = new HistoryPlayer();
+            $historyPlayer->history_id = $history->id;
+            $historyPlayer->user_id = $guestPlayer->user_id;
+            $historyPlayer->is_host = 0;
+            $historyPlayer->save();
+        }else{
+            throw new \Exception(Game::EXCEPTION_CREATE_HISTORY_FAILURE_MSG,Game::EXCEPTION_CREATE_HISTORY_FAILURE_CODE);
+        }
+
+        $cache = Yii::$app->cache;
+        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
+        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
+
     }
 
     private static function createOne($room_id){
-        $success = false;
         $room = Room::find()->where(['id'=>$room_id])->one();
-        if($room){
-            $game = new Game();
-            $game->room_id = $room->id;
-            $game->round_num = 1;
-            $game->round_player_is_host = rand(0,1); //随机选择一个玩家开始第一个回合
-            $game->cue_num = self::DEFAULT_CUE;
-            $game->chance_num = self::DEFAULT_CHANCE;
-            $game->status = Game::STATUS_PLAYING;
-            $game->score = 0;
-            if($game->save()){
-                if(GameCard::initLibrary($room_id)){
-                    for($i=0;$i<5;$i++){ //玩家 1 2 各模五张牌
-                        GameCard::drawCard($room_id,1);
-                        GameCard::drawCard($room_id,0);
-                    }
-                    $success = true;
-                }
-            }else{
-                echo 11;exit;
-                //TODO 错误处理
-            }
-
-        }else{
-            echo 44;exit;
-            //TODO 错误处理
+        if(!$room){
+            throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_ROOM_MSG,Game::EXCEPTION_START_GAME_WRONG_ROOM_CODE);
         }
-        return $success;
+
+        $game = new Game();
+        $game->room_id = $room->id;
+        $game->round_num = 1;
+        $game->round_player_is_host = rand(0,1); //随机选择一个玩家开始第一个回合
+        $game->cue_num = Game::DEFAULT_CUE;
+        $game->chance_num = Game::DEFAULT_CHANCE;
+        $game->status = Game::STATUS_PLAYING;
+        $game->score = 0;
+
+        if($game->save()){
+            if(GameCard::initLibrary($room_id)){
+                for($i=0;$i<5;$i++){ //主机/客机玩家 各模五张牌
+                    GameCard::drawCard($room_id,true);
+                    GameCard::drawCard($room_id,false);
+                }
+            }
+        }else{
+            throw new \Exception(Game::EXCEPTION_CREATE_GAME_FAILURE_MSG,Game::EXCEPTION_CREATE_GAME_FAILURE_CODE);
+        }
     }
 
 
@@ -292,7 +326,9 @@ class Game extends ActiveRecord
 
         }
 
-        
+
+
+
 
 
 

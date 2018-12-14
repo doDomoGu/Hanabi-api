@@ -131,7 +131,7 @@ class Room extends ActiveRecord
     }
 
 
-    protected static function getInfo($roomId) {
+    public static function getInfo($roomId) {
         $room = Room::find()->where(['id' => $roomId])->one();
 
         #房间不存在，返回异常
