@@ -59,14 +59,18 @@ class MyActiveController extends ActiveController
 
     public function runAction($id, $params = [])
     {
-        try {
+        if(Yii::$app->request->isOptions){
+            parent::runAction($id, $params);
+        }else{
+            try {
 
-            return $this->sendSuccess(parent::runAction($id, $params));
+                return $this->sendSuccess(parent::runAction($id, $params));
 
-        }catch ( \Exception $e) {
+            }catch ( \Exception $e) {
 
-            return $this->sendException($e);
+                return $this->sendException($e);
 
+            }
         }
 
     }
@@ -126,10 +130,9 @@ class MyActiveController extends ActiveController
      *
      */
     public function actionOption(){
-        $request = Yii::$app->request;
-        if($request->isOptions){
+        if(Yii::$app->request->isOptions){
             //Yii::$app->getResponse()->getHeaders()->set('Allow', 'POST GET PUT');
-            return;//$this->sendSuccess();
+            return ;//$this->sendSuccess();
         }
     }
 }
