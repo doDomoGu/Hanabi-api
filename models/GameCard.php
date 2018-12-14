@@ -79,50 +79,40 @@ class GameCard extends ActiveRecord
     }
 
     //初始化牌库
-    public static function initLibrary($room_id){
-        $return = false;
-        $game = Game::find()->where(['room_id'=>$room_id,'status'=>Game::STATUS_PLAYING])->one();
-        if($game){
-            $cardCount = GameCard::find()->where(['room_id'=>$game->room_id])->count();
-            if($cardCount==0){
-                $cardArr = [];
-                foreach(Card::$colors as $k=>$v){
-                    foreach(Card::$numbers as $k2=>$v2){
-                        $cardArr[] = [$k,$k2];
-                    }
-                }
-                shuffle($cardArr);
-
-                $insertArr = [];
-                $ord = 0;
-                foreach($cardArr as $c){
-                    $insertArr[] = [$room_id,GameCard::TYPE_IN_LIBRARY,$ord,$c[0],$c[1],$ord,date('Y-m-d H:i:s')];
-                    $ord++;
-                }
-
-                Yii::$app->db->createCommand()->batchInsert(
-                    GameCard::tableName(),
-                    ['room_id','type','type_ord','color','num','ord','updated_at'],
-                    $insertArr
-                )->execute();
-
-                $cards = GameCard::find()->where(['room_id'=>$game->room_id])->count();
-                if($cards==Card::CARD_NUM_ALL){
-                    $return = true;
-                }else{
-                    //TODO 错误处理
-                }
-            }else{
-                //TODO 错误处理
-
-                //echo 'game card exist';exit;
-            }
-        }else{
-            //TODO 错误处理
-
-            //game not exit
+    public static function initLibrary($roomId){
+        $cardCount = GameCard::find()->where(['room_id'=>$roomId])->count();
+        if($cardCount > 0) {
+            throw new \Exception(Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG,Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE);
         }
-        return $return;
+
+
+        $cardArr = [];
+        foreach(Card::$colors as $k=>$v){
+            foreach(Card::$numbers as $k2=>$v2){
+                $cardArr[] = [$k,$k2];
+            }
+        }
+        shuffle($cardArr);
+
+        $insertArr = [];
+        $ord = 0;
+        foreach($cardArr as $c){
+            $insertArr[] = [$roomId,GameCard::TYPE_IN_LIBRARY,$ord,$c[0],$c[1],$ord,date('Y-m-d H:i:s')];
+            $ord++;
+        }
+
+        Yii::$app->db->createCommand()->batchInsert(
+            GameCard::tableName(),
+            ['room_id','type','type_ord','color','num','ord','updated_at'],
+            $insertArr
+        )->execute();
+
+        $cards = GameCard::find()->where(['room_id'=>$roomId])->count();
+
+        if($cards <> Card::CARD_NUM_ALL){
+            throw new \Exception(Game::EXCEPTION_WRONG_CARD_NUM_ALL_MSG,Game::EXCEPTION_WRONG_CARD_NUM_ALL_CODE);
+        }
+
     }
 
     //摸一张牌

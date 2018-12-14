@@ -57,6 +57,10 @@ class Game extends ActiveRecord
     const EXCEPTION_CREATE_GAME_FAILURE_MSG   = '开始游戏操作，创建失败';
     const EXCEPTION_CREATE_HISTORY_FAILURE_CODE  = 10013;
     const EXCEPTION_CREATE_HISTORY_FAILURE_MSG   = '开始游戏操作，创建游戏记录失败';
+    const EXCEPTION_END_GAME_HAS_NO_GAME_CODE  = 10014;
+    const EXCEPTION_END_GAME_HAS_NO_GAME_MSG   = '结束游戏操作，但是游戏不存在';
+    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE  = 10015;
+    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG   = '结束游戏操作，操作玩家不是主机玩家';
 
 
     /**
@@ -249,57 +253,41 @@ class Game extends ActiveRecord
 
 
     public static function end(){
-        $success = false;
-        $msg = '';
-        $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            /*//TODO 暂时只有玩家1可以进行"结束游戏操作"
-            if($room_player->is_host == 1){*/
-                $room = Room::find()->where(['id'=>$room_player->room_id])->one();
-                if($room){
-                    $game = Game::find()->where(['room_id'=>$room->id,'status'=>Game::STATUS_PLAYING])->all();
-                    if($game) {
-                        // 1.删除游戏数据
-                        Game::deleteAll(['room_id'=>$room->id]);
-                        GameCard::deleteAll(['room_id'=>$room->id]);
 
-                        // 2.修改玩家2状态为"未准备"
-                        $guest_player = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>0])->one();
-                        if($guest_player){
-                            $guest_player->is_ready = 0;
-                            $guest_player->save();
-                        }
+        list($isInGame, $roomId) = Game::isInGame();
 
-                        //游戏结束 修改日志状态
-                        $history = History::find()->where(['room_id'=>$room->id,'status'=>History::STATUS_PLAYING])->one();
-                        if($history){
-                            $history->status = History::STATUS_END;
-                            $history->save();
-                        }
-
-                        $roomPlayers = RoomPlayer::find()->where(['room_id' => $room->id])->all();
-                        $cache = Yii::$app->cache;
-                        foreach ($roomPlayers as $player) {
-                            $cacheKey = 'room_info_no_update_'.$player->user_id;
-                            $cache->set($cacheKey,false);
-                        }
-
-                        $success = true;
-                    }else{
-                        $msg = '你所在房间游戏未开始，错误';
-                    }
-                }else{
-                    $msg = '房间不存在！';
-                }
-            /*}else{
-                $msg = '玩家角色错误';
-            }*/
-        }else{
-            $msg = '你不在房间中/不止在一个房间中，错误';
+        if(!$isInGame) {
+            throw new \Exception(Game::EXCEPTION_END_GAME_HAS_NO_GAME_MSG,Game::EXCEPTION_END_GAME_HAS_NO_GAME_CODE);
         }
 
-        return [$success,$msg];
+        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+
+        if(!$isHost){
+            throw new \Exception(Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE);
+        }
+
+        // 1.删除游戏数据
+        Game::deleteAll(['room_id'=>$roomId]);
+        GameCard::deleteAll(['room_id'=>$roomId]);
+
+        // 2.修改玩家2状态为"未准备"
+        $guest_player = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>0])->one();
+        if($guest_player){
+            $guest_player->is_ready = 0;
+            $guest_player->save();
+        }
+
+        //游戏结束 修改日志状态
+        $history = History::find()->where(['room_id'=>$room->id,'status'=>History::STATUS_PLAYING])->one();
+        if($history){
+            $history->status = History::STATUS_END;
+            $history->save();
+        }
+
+        $cache = Yii::$app->cache;
+        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
+        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
+
     }
 
     public static function info($mode='all',$force=false){
