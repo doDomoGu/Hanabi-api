@@ -31,36 +31,40 @@ class Game extends ActiveRecord
     const STATUS_PLAYING = 1;
     const STATUS_END = 2;
 
-    const EXCEPTION_NOT_IN_ROOM_CODE  = 10001;
+    const EXCEPTION_NOT_IN_ROOM_CODE  = 20001;
     const EXCEPTION_NOT_IN_ROOM_MSG   = '在判断是否在进行游戏时，发现玩家根本不在房间中';
-    const EXCEPTION_WRONG_CHANCE_NUM_CODE  = 10002;
+    const EXCEPTION_WRONG_CHANCE_NUM_CODE  = 20002;
     const EXCEPTION_WRONG_CHANCE_NUM_MSG   = '机会数错误';
-    const EXCEPTION_WRONG_CUE_NUM_CODE  = 10003;
+    const EXCEPTION_WRONG_CUE_NUM_CODE  = 20003;
     const EXCEPTION_WRONG_CUE_NUM_MSG   = '提示数错误';
-    const EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE  = 10004;
+    const EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE  = 20004;
     const EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG   = '不在游戏中，但是有卡牌存在';
-    const EXCEPTION_WRONG_CARD_NUM_ALL_CODE  = 10005;
+    const EXCEPTION_WRONG_CARD_NUM_ALL_CODE  = 20005;
     const EXCEPTION_WRONG_CARD_NUM_ALL_MSG   = '游戏中，但是总卡牌数不对';
-    const EXCEPTION_GUEST_PLAYER_NOT_READY_CODE  = 10006;
+    const EXCEPTION_GUEST_PLAYER_NOT_READY_CODE  = 20006;
     const EXCEPTION_GUEST_PLAYER_NOT_READY_MSG   = '游戏中，但是客机玩家没有准备';
-    const EXCEPTION_WRONG_PLAYERS_CODE  = 10007;
+    const EXCEPTION_WRONG_PLAYERS_CODE  = 20007;
     const EXCEPTION_WRONG_PLAYERS_MSG   = '游戏中，玩家信息错误';
-    const EXCEPTION_START_GAME_HAS_STARTED_CODE  = 10008;
+    const EXCEPTION_START_GAME_HAS_STARTED_CODE  = 20008;
     const EXCEPTION_START_GAME_HAS_STARTED_MSG   = '开始游戏操作，但是游戏已经开始了';
-    const EXCEPTION_START_GAME_WRONG_PLAYERS_CODE  = 10009;
+    const EXCEPTION_START_GAME_WRONG_PLAYERS_CODE  = 20009;
     const EXCEPTION_START_GAME_WRONG_PLAYERS_MSG   = '开始游戏操作，房间内游戏玩家信息错误';
-    const EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE  = 10010;
+    const EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE  = 20010;
     const EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_MSG   = '开始游戏操作，客机玩家没有准备';
-    const EXCEPTION_START_GAME_WRONG_ROOM_CODE  = 10011;
+    const EXCEPTION_START_GAME_WRONG_ROOM_CODE  = 20011;
     const EXCEPTION_START_GAME_WRONG_ROOM_MSG   = '开始游戏操作，房间不存在';
-    const EXCEPTION_CREATE_GAME_FAILURE_CODE  = 10012;
+    const EXCEPTION_CREATE_GAME_FAILURE_CODE  = 20012;
     const EXCEPTION_CREATE_GAME_FAILURE_MSG   = '开始游戏操作，创建失败';
-    const EXCEPTION_CREATE_HISTORY_FAILURE_CODE  = 10013;
+    const EXCEPTION_CREATE_HISTORY_FAILURE_CODE  = 20013;
     const EXCEPTION_CREATE_HISTORY_FAILURE_MSG   = '开始游戏操作，创建游戏记录失败';
-    const EXCEPTION_END_GAME_HAS_NO_GAME_CODE  = 10014;
+    const EXCEPTION_END_GAME_HAS_NO_GAME_CODE  = 20014;
     const EXCEPTION_END_GAME_HAS_NO_GAME_MSG   = '结束游戏操作，但是游戏不存在';
-    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE  = 10015;
+    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE  = 20015;
     const EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG   = '结束游戏操作，操作玩家不是主机玩家';
+    const EXCEPTION_DISCARD_NOT_IN_GAME_CODE  = 20016;
+    const EXCEPTION_DISCARD_NOT_IN_GAME_MSG   = '弃牌操作，不在游戏中';
+    const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE  = 20016;
+    const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG   = '弃牌操作，不是该玩家的回合';
 
 
     /**
@@ -434,71 +438,62 @@ class Game extends ActiveRecord
 
 
     public static function discard($ord){
-        $success = false;
-        $msg = '';
-        $data = [];
-        $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            $game = Game::find()->where(['room_id'=>$room_player->room_id,'status'=>Game::STATUS_PLAYING])->one();
-            if($game){
-                $room_id = $game->room_id;
-                if($game->round_player_is_host==$room_player->is_host){
-                    $gameCardCount = GameCard::find()->where(['room_id'=>$room_id])->count();
 
-                    if($gameCardCount==Card::CARD_NUM_ALL){
-                        //丢弃一张牌
-                        list($discard_success,$card_ord, $msg) =GameCard::discardCard($room_id,$ord);
-                        if($discard_success){
-                            //恢复一个提示数
-                            Game::recoverCue($room_id);
+        list($isInGame, $roomId) = Game::isInGame();
 
-                            //插入日志 record
-                            //TODO
-                            $history = History::find()->where(['room_id'=>$room_id,'status'=>History::STATUS_PLAYING])->one();
-                            if($history){
-                                list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($room_id,$card_ord);
-                                if($get_content_success){
-                                    $historyLog = new HistoryLog();
-                                    $historyLog->history_id = $history->id;
-                                    $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
-                                    $historyLog->content_param = $content_param;
-                                    $historyLog->content = $content;
-                                    $historyLog->save();
-                                    //var_dump($historyLog->errors);exit;
-                                }
-                            }
-
-                            //交换(下一个)回合
-                            Game::changeRoundPlayer($room_id);
-
-                            $cache = Yii::$app->cache;
-                            $cache_key = 'game_info_no_update_'.$user_id;
-                            $cache->set($cache_key,false);
-
-                            $other_user = RoomPlayer::find()->where(['room_id'=>$room_id,'is_host'=>$room_player->is_host?0:1])->one();
-                            if($other_user){
-                                $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
-                                $cache->set($cache_key2,false);
-                            }
-
-                            $success = true;
-                        }
-
-                    }else{
-                        $msg = '总卡牌数错误';
-                    }
-                }else{
-                    $msg = '当前不是你的回合';
-                }
-            }else{
-                $msg = '你所在房间游戏未开始/或者有多个游戏，错误';
-            }
-        }else{
-            $msg = '你不在房间中/不止在一个房间中，错误';
+        if(!$isInGame) {
+            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_IN_GAME_MSG,Game::EXCEPTION_DISCARD_NOT_IN_GAME_CODE);
         }
 
-        return [$success,$msg,$data];
+        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+
+        $game = Game::find()->where(['room_id'=>$roomId])->one();
+
+        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
+            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE);
+        }
+
+        //丢弃一张牌
+        list($discard_success,$card_ord, $msg) = GameCard::discardCard($roomId, $isHost, $ord);
+        if($discard_success){
+            //恢复一个提示数
+            Game::recoverCue($room_id);
+
+            //插入日志 record
+            //TODO
+            $history = History::find()->where(['room_id'=>$room_id,'status'=>History::STATUS_PLAYING])->one();
+            if($history){
+                list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($room_id,$card_ord);
+                if($get_content_success){
+                    $historyLog = new HistoryLog();
+                    $historyLog->history_id = $history->id;
+                    $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
+                    $historyLog->content_param = $content_param;
+                    $historyLog->content = $content;
+                    $historyLog->save();
+                    //var_dump($historyLog->errors);exit;
+                }
+            }
+
+            //交换(下一个)回合
+            Game::changeRoundPlayer($room_id);
+
+            $cache = Yii::$app->cache;
+            $cache_key = 'game_info_no_update_'.$user_id;
+            $cache->set($cache_key,false);
+
+            $other_user = RoomPlayer::find()->where(['room_id'=>$room_id,'is_host'=>$room_player->is_host?0:1])->one();
+            if($other_user){
+                $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
+                $cache->set($cache_key2,false);
+            }
+
+            $success = true;
+        }
+
+
+
+
     }
 
     //打出一张牌
