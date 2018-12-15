@@ -26,6 +26,14 @@ class GameCard extends ActiveRecord
     const TYPE_SUCCEEDED    = 4; #成功打出（燃放）的牌  牌序为 0~N 按照打出的顺序"从小到大"
     const TYPE_DISCARDED    = 5; #弃掉的和打出失败的卡牌  牌序为 0~N 按照弃掉和打出的顺序"从小到大"
 
+    const EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE  = 30001;
+    const EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG   = '错误的手牌牌序';
+    const EXCEPTION_NOT_FOUND_HANDS_CODE  = 30002;
+    const EXCEPTION_NOT_FOUND_HANDS_MSG   = '没有找到对应的手牌';
+    const EXCEPTION_DISCARD_FAILURE_CODE  = 30003;
+    const EXCEPTION_DISCARD_FAILURE_MSG   = '弃牌失败';
+
+    public static $handsTypeOrds = [0,1,2,3,4];  # 手牌排序范围
 //    public static $host_hands_type_ord = [0,1,2,3,4];
 //    public static $guest_hands_type_ord = [5,6,7,8,9];
     /**
@@ -159,53 +167,37 @@ class GameCard extends ActiveRecord
     }
 
 
-    public static function discardCard($room_id,$type_ord){
-        $success = false;
-        $card_ord = -1;
-        $msg = '';
-        //统计牌的总数 应该为50张
-        $count = GameCard::find()->where(['room_id'=>$room_id])->count();
-        if($count==Card::CARD_NUM_ALL){
-            if(RoomPlayer::isHostPlayer()){
-                $type_ords = GameCard::$host_hands_type_ord;
-            }else{
-                $type_ords = GameCard::$guest_hands_type_ord;
-            }
+    public static function discardCard($roomId, $isHost, $typeOrd){
+        #根据isHost，选择GameCard的type
+        $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
 
-            if(in_array($type_ord,$type_ords)){
-
-                //所选择的牌
-                $cardSelected = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
-                if($cardSelected){
-                    $card_ord = $cardSelected->ord;
-                    //将牌丢进弃牌堆
-                    $cardSelected->type = GameCard::TYPE_DISCARDED;
-                    $cardSelected->type_ord = GameCard::getInsertDiscardOrd($room_id);
-                    if($cardSelected->save()){
-                        if(GameCard::moveHandCardsByLackOfCard($room_id,$type_ord)){
-                            //给这个玩家摸一张牌
-                            if(in_array($type_ord,GameCard::$host_hands_type_ord)){
-                                GameCard::drawCard($room_id,true);
-                            }else if(in_array($type_ord,GameCard::$guest_hands_type_ord)){
-                                GameCard::drawCard($room_id,false);
-                            }
-                            $success = true;
-                        }else{
-                            $msg = '补牌失败';
-                        }
-                    }else{
-                        $msg = '弃牌失败';
-                    }
-                }else{
-                    $msg = '没有找到选择的牌';
-                }
-            }else{
-                $msg='选择手牌排序错误';
-            }
-        }else{
-            $msg = 'game card num wrong';
+        if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
+            throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
         }
-        return [$success,$card_ord,$msg];
+
+        #找到所选择的牌
+        $cardSelected = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType,'type_ord'=>$typeOrd])->one();
+        if(!$cardSelected){
+            throw new \Exception(GameCard::EXCEPTION_NOT_FOUND_HANDS_MSG,GameCard::EXCEPTION_NOT_FOUND_HANDS_CODE);
+        }
+
+        #卡牌固定排序（唯一不变）
+        $cardOrd = $cardSelected->ord;
+
+        #将牌丢进弃牌堆
+        $cardSelected->type = GameCard::TYPE_DISCARDED;
+        $cardSelected->type_ord = GameCard::getInsertDiscardOrd($roomId);
+        if(!$cardSelected->save()){
+            throw new \Exception(GameCard::EXCEPTION_DISCARD_FAILURE_MSG,GameCard::EXCEPTION_DISCARD_FAILURE_CODE);
+        }
+
+        #牌序移动
+        GameCard::moveHandCardsByLackOfCard($roomId, $isHost, $typeOrd);
+
+        #摸牌
+        GameCard::drawCard($roomId, $isHost);
+
+        return $cardOrd;
     }
 
     public static function playCard($room_id,$type_ord){
@@ -385,31 +377,24 @@ class GameCard extends ActiveRecord
 //    }
 
     //移动手牌 因为打出/弃掉一张牌
-    private static function moveHandCardsByLackOfCard($room_id,$ord){
-        //根据type_ord 判断是否is_host
-        $type_ords = [];
-        if(in_array($ord,GameCard::$host_hands_type_ord)){
-            $type_ords = GameCard::$host_hands_type_ord;
-        }else if(in_array($ord,GameCard::$guest_hands_type_ord)){
-            $type_ords = GameCard::$guest_hands_type_ord;
+    private static function moveHandCardsByLackOfCard($roomId, $isHost, $typeOrd){
+
+        #根据isHost 判断卡牌类型 是主机玩家手牌 还是 客机玩家手牌
+        $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
+
+        if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
+            throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
         }
 
-
-        if(!empty($type_ords)){
-            //将排序靠后的手牌都往前移动
-            for($i = $ord+1;$i<=max($type_ords);$i++){
-                $otherCard = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'type_ord'=>$i])->one();
-                if($otherCard){
-                    $otherCard->type_ord = $otherCard->type_ord - 1;
-                    $otherCard->save();
-                }
+        //将排序靠后的手牌都往前移动
+        for($i = $typeOrd + 1;$i<=max(GameCard::$handsTypeOrds);$i++){
+            $otherCard = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType,'type_ord'=>$i])->one();
+            if($otherCard){
+                $otherCard->type_ord = $i - 1;
+                $otherCard->save();
             }
-
-            return true;
-        }else{
-            //echo '选择的手牌排序错误';
-            return false;
         }
+
     }
 
     //获取成功燃放的烟花 卡牌 每种花色的最高数值

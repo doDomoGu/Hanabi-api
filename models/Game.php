@@ -437,7 +437,7 @@ class Game extends ActiveRecord
     }
 
 
-    public static function discard($ord){
+    public static function discard($typeOrd){
 
         list($isInGame, $roomId) = Game::isInGame();
 
@@ -454,42 +454,35 @@ class Game extends ActiveRecord
         }
 
         //丢弃一张牌
-        list($discard_success,$card_ord, $msg) = GameCard::discardCard($roomId, $isHost, $ord);
-        if($discard_success){
-            //恢复一个提示数
-            Game::recoverCue($room_id);
+        $cardOrd = GameCard::discardCard($roomId, $isHost, $typeOrd);
 
-            //插入日志 record
-            //TODO
-            $history = History::find()->where(['room_id'=>$room_id,'status'=>History::STATUS_PLAYING])->one();
-            if($history){
-                list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($room_id,$card_ord);
-                if($get_content_success){
-                    $historyLog = new HistoryLog();
-                    $historyLog->history_id = $history->id;
-                    $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
-                    $historyLog->content_param = $content_param;
-                    $historyLog->content = $content;
-                    $historyLog->save();
-                    //var_dump($historyLog->errors);exit;
-                }
+        //恢复一个提示数
+        Game::recoverCue($roomId);
+
+        //插入日志 record
+        //TODO
+        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
+        if($history){
+            list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId,$cardOrd);
+            if($get_content_success){
+                $historyLog = new HistoryLog();
+                $historyLog->history_id = $history->id;
+                $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
+                $historyLog->content_param = $content_param;
+                $historyLog->content = $content;
+                $historyLog->save();
+                //var_dump($historyLog->errors);exit;
             }
-
-            //交换(下一个)回合
-            Game::changeRoundPlayer($room_id);
-
-            $cache = Yii::$app->cache;
-            $cache_key = 'game_info_no_update_'.$user_id;
-            $cache->set($cache_key,false);
-
-            $other_user = RoomPlayer::find()->where(['room_id'=>$room_id,'is_host'=>$room_player->is_host?0:1])->one();
-            if($other_user){
-                $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
-                $cache->set($cache_key2,false);
-            }
-
-            $success = true;
         }
+
+        //交换(下一个)回合
+        Game::changeRoundPlayer($roomId);
+
+        $cache = Yii::$app->cache;
+        $cache->delete('game_info_no_update_'.$hostPlayer->user_id);
+        $cache->delete('game_info_no_update_'.$guestPlayer->user_id);
+
+
 
 
 
