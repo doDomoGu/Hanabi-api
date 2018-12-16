@@ -87,9 +87,9 @@ class MyGameController extends MyActiveController
      */
     public function actionDoDiscard(){
 
-        $ord = Yii::$app->request->post('cardSelectOrd');
+        $typeOrd = Yii::$app->request->post('cardSelectOrd');
 
-        Game::discard($ord);
+        Game::discard($typeOrd);
     }
 
 
@@ -104,13 +104,11 @@ class MyGameController extends MyActiveController
      * @apiParam {int=0,1,2,3,4} cardSelectOrd 所选手牌的排序
      */
     public function actionDoPlay(){
-        $return = $this->return;
 
-        $ord = Yii::$app->request->post('cardSelectOrd');
+        $typeOrd = Yii::$app->request->post('cardSelectOrd');
 
-        list($return['success'],$return['msg']) = Game::play($ord);
+        Game::play($typeOrd);
 
-        return $return;
     }
 
     /**
