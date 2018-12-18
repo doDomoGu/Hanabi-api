@@ -53,6 +53,7 @@ class MyRoomController extends MyActiveController
      *
      */
     public function actionEnter(){
+
         $roomId = (int) Yii::$app->request->post('roomId');
 
         Room::enter($roomId);

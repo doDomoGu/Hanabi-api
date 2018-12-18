@@ -547,6 +547,9 @@ class Game extends ActiveRecord
 
     //提示
     public static function cue($ord,$type){
+
+        list($isInGame, $roomId) = Game::isInGame();
+
         $success = false;
         $msg = '';
         $data = [];

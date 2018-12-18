@@ -19,6 +19,7 @@ class RoomController extends MyActiveController
     }
 
     public function actionList(){
+
         $force = !!Yii::$app->request->get('force',false);
 
         return Room::getList($force);
