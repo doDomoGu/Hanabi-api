@@ -18,12 +18,6 @@ class MyGameController extends MyActiveController
         return $behaviors;
     }
 
-
-    public function actionStart(){
-
-        Game::start();
-
-    }
     /**
      * @apiDefine ParamAuthToken
      *
@@ -35,6 +29,30 @@ class MyGameController extends MyActiveController
      *
      * 玩家对应的游戏
      */
+
+    public function actionStart(){
+
+        Game::start();
+
+    }
+
+    /**
+     * @api {post} /my-game/end 结束游戏
+     * @apiName End
+     * @apiGroup GroupMyGame
+     *
+     * @apiVersion 1.0.0
+     *
+     * @apiUse ParamAuthToken
+     */
+
+    public function actionEnd(){
+
+        Game::end();
+
+    }
+
+
 
     /**
      * @api {get} /my-game/info 获取游戏信息
@@ -58,21 +76,7 @@ class MyGameController extends MyActiveController
 
     }
 
-    /**
-     * @api {post} /my-game/end 结束游戏
-     * @apiName End
-     * @apiGroup GroupMyGame
-     *
-     * @apiVersion 1.0.0
-     *
-     * @apiUse ParamAuthToken
-     */
 
-    public function actionEnd(){
-
-        Game::end();
-
-    }
 
 
     /**
@@ -123,14 +127,13 @@ class MyGameController extends MyActiveController
      * @apiParam {string="num","color"} cueType 提示类型
      */
     public function actionDoCue(){
-        $return = $this->return;
 
         $ord = Yii::$app->request->post('cardSelectOrd');
+
         $type = Yii::$app->request->post('cueType');
 
-        list($return['success'],$return['msg']) = Game::cue($ord,$type);
+        Game::cue($ord,$type);
 
-        return $return;
     }
 
 
@@ -146,11 +149,8 @@ class MyGameController extends MyActiveController
      *
      */
     public function actionAutoPlay(){
-        $return = $this->return;
 
+        Game::autoPlay();
 
-        list($return['success'],$return['msg']) = Game::autoPlay();
-
-        return $return;
     }
 }
