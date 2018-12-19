@@ -29,17 +29,15 @@ class MyRoomController extends MyActiveController
      *
      * 玩家对应的房间
      */
-
     public function actionInfo(){
 
         $mode = Yii::$app->request->get('mode','all');
 
         $force = Yii::$app->request->get('force',false);
 
-        return Room::info($mode, $force);
+        return Room::myRoomInfo($mode, $force);
 
     }
-
 
     /**
      * @api {post} /my-room/enter 进入房间
