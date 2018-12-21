@@ -152,7 +152,7 @@ class Game extends ActiveRecord
         #在游戏中
         #以下是检查游戏状态
 
-        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
 
         if(!$hostPlayer || !$guestPlayer) {
             throw new \Exception(Game::EXCEPTION_WRONG_PLAYERS_MSG,Game::EXCEPTION_WRONG_PLAYERS_CODE);
@@ -189,7 +189,7 @@ class Game extends ActiveRecord
             throw new \Exception(Game::EXCEPTION_START_GAME_HAS_STARTED_MSG,Game::EXCEPTION_START_GAME_HAS_STARTED_CODE);
         }
 
-        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
 
         if(!$hostPlayer || !$guestPlayer) {
             throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_PLAYERS_MSG,Game::EXCEPTION_START_GAME_WRONG_PLAYERS_CODE);
@@ -266,7 +266,7 @@ class Game extends ActiveRecord
             throw new \Exception(Game::EXCEPTION_END_GAME_HAS_NO_GAME_MSG,Game::EXCEPTION_END_GAME_HAS_NO_GAME_CODE);
         }
 
-        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
 
         if(!$isHost){
             throw new \Exception(Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE);
@@ -445,7 +445,7 @@ class Game extends ActiveRecord
             throw new \Exception(Game::EXCEPTION_DISCARD_NOT_IN_GAME_MSG,Game::EXCEPTION_DISCARD_NOT_IN_GAME_CODE);
         }
 
-        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
 
         $game = Game::find()->where(['room_id'=>$roomId])->one();
 
@@ -493,7 +493,7 @@ class Game extends ActiveRecord
             throw new \Exception(Game::EXCEPTION_DISCARD_NOT_IN_GAME_MSG,Game::EXCEPTION_DISCARD_NOT_IN_GAME_CODE);
         }
 
-        list($room, $hostPlayer, $guestPlayer, $isHost, $isReady) = Room::getInfo($roomId);
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
 
         $game = Game::find()->where(['room_id'=>$roomId])->one();
 
