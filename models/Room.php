@@ -153,6 +153,8 @@ class Room extends ActiveRecord
                 throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
             }
             $hostPlayer = $room->hostPlayer;
+        }else{
+            $hostPlayer = null;
         }
 
         #玩家ID 找不到对应玩家 （客机玩家）
@@ -161,12 +163,14 @@ class Room extends ActiveRecord
                 throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
             }
             $guestPlayer = $room->guestPlayer;
+        }else{
+            $guestPlayer = null;
         }
 
         #没有主机玩家，返回异常
-        if (!$hostPlayer) {
+        /*if (!$hostPlayer) {
             throw new \Exception(Room::EXCEPTION_NO_HOST_PLAYER_MSG, Room::EXCEPTION_NO_HOST_PLAYER_CODE);
-        }
+        }*/
 
         return $room;
     }
