@@ -44,6 +44,8 @@ class Room extends ActiveRecord
     const EXCEPTION_DO_READY_FAILURE_MSG  = '准备操作，失败';
     const EXCEPTION_PLAYER_NOT_FOUND_CODE = 10012;
     const EXCEPTION_PLAYER_NOT_FOUND_MSG  = '对应的玩家找不到';
+    const EXCEPTION_PLAYER_NUMBER_WRONG_MSG   = '房间人数错误';
+    const EXCEPTION_PLAYER_NUMBER_WRONG_CODE  = 10013;
 
 
 
@@ -111,131 +113,70 @@ class Room extends ActiveRecord
     }
 
     # 检查当前玩家是否在房间中
-    # 在房间内，检查房间内部数据是否正常，返回[true,room对象]
+    # 在房间内，检查房间内部数据是否正常，返回[true,roomId]
     # 不在房间内，返回[false,null]
     public static function isInRoom(){
-
-        $roomCount = RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->count();
-
+        $roomCount = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->count(); //房间数
+        # error：一个玩家不应该在多个房间
         if($roomCount > 1){
             throw new \Exception(Room::EXCEPTION_IN_MANY_ROOM_MSG,Room::EXCEPTION_IN_MANY_ROOM_CODE);
         }
-
-        if ($roomCount == 0){
+        # 不在房间内，返回[false,null]
+        if ($roomCount !== 1){
             return [false, null];
         }
-
         #由roomPlayer得知，玩家在房间内，开始检查房间数据
-        $roomPlayer = RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->one();
-
-        $room = Room::find()->where(['id'=>$roomId])->one();
-
-        #房间不存在，返回异常
-        if(!$room){
-            throw new \Exception(Room::EXCEPTION_NOT_FOUND_MSG,Room::EXCEPTION_NOT_FOUND_CODE);
-        }
-
-        $roomPlayersCount = RoomPlayer::find()->where(['room_id'=>$roomId])->count();
-
-        #房间玩家人数大于2，返回异常
-        if( $roomPlayersCount > 2 ){
-            throw new \Exception(Room::EXCEPTION_PLAYER_OVER_LIMIT_MSG,Room::EXCEPTION_PLAYER_OVER_LIMIT_CODE);
-        }
-
-        #玩家ID 找不到对应玩家 （主机玩家）
-        if($room->hostPlayer){
-            if(!$room->hostPlayer->user){
-                throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
-            }
-            $hostPlayer = $room->hostPlayer;
-        }else{
-            $hostPlayer = null;
-        }
-
-        #玩家ID 找不到对应玩家 （客机玩家）
-        if($room->guestPlayer){
-            if(!$room->guestPlayer->user){
-                throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
-            }
-            $guestPlayer = $room->guestPlayer;
-        }else{
-            $guestPlayer = null;
-        }
-
-        #没有主机玩家，返回异常
-        /*if (!$hostPlayer) {
-            throw new \Exception(Room::EXCEPTION_NO_HOST_PLAYER_MSG, Room::EXCEPTION_NO_HOST_PLAYER_CODE);
-        }*/
-
-
-        return [true, $room];
+        $roomId = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->one()->room_id; //房间ID
+        Room::check($roomId, true);
+        return [true, $roomId];
     }
 
     # 检查房间状态
-    # 参数：roomId
-    private static function check($roomId, $hasPlayer){
-        $room = Room::find()->where(['id'=>$roomId])->one();
-
-        #房间不存在，返回异常
+    # 参数：$roomId
+    # 参数：$checkNotEmpty 是否检查房间不为空 （至少有一个主机玩家）
+    private static function check($roomId, $checkNotEmpty){
+        $room = Room::find()->where(['id'=>$roomId])->one(); //房间对象
+        # error: 房间不存在
         if(!$room){
             throw new \Exception(Room::EXCEPTION_NOT_FOUND_MSG,Room::EXCEPTION_NOT_FOUND_CODE);
         }
-
-        $roomPlayersCount = RoomPlayer::find()->where(['room_id'=>$roomId])->count();
-
-        #房间玩家人数大于2，返回异常
-        if( $roomPlayersCount > 2 ){
-            throw new \Exception(Room::EXCEPTION_PLAYER_OVER_LIMIT_MSG,Room::EXCEPTION_PLAYER_OVER_LIMIT_CODE);
+        $roomPlayersCount = (int) RoomPlayer::find()->where(['room_id'=>$roomId])->count(); //房间玩家人数
+        # error: 房间玩家人数异常
+        if( $roomPlayersCount > 2 || $roomPlayersCount < 1 ){
+            throw new \Exception(Room::EXCEPTION_PLAYER_NUMBER_WRONG_MSG,Room::EXCEPTION_PLAYER_NUMBER_WRONG_CODE);
         }
-
-        #玩家ID 找不到对应玩家 （主机玩家）
-        if($room->hostPlayer){
-            if(!$room->hostPlayer->user){
-                throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
-            }
-            $hostPlayer = $room->hostPlayer;
-        }else{
-            $hostPlayer = null;
-        }
-
-        #玩家ID 找不到对应玩家 （客机玩家）
-        if($room->guestPlayer){
-            if(!$room->guestPlayer->user){
-                throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
-            }
-            $guestPlayer = $room->guestPlayer;
-        }else{
-            $guestPlayer = null;
-        }
-
-        #没有主机玩家，返回异常
-        /*if (!$hostPlayer) {
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+        # error: 没有主机玩家
+        if($checkNotEmpty && !$hostPlayer) {
             throw new \Exception(Room::EXCEPTION_NO_HOST_PLAYER_MSG, Room::EXCEPTION_NO_HOST_PLAYER_CODE);
-        }*/
-
+        }
+        # error: 找不到对应的（主机）玩家信息
+        if($hostPlayer && !$hostPlayer->user){
+            throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
+        }
+        # error: 找不到对应的（客机）玩家信息
+        if($guestPlayer && !$guestPlayer->user){
+            throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
+        }
         return $room;
     }
 
 
-    public static function getInfo($roomId) {
-        $room = Room::check($roomId);
-
-        $hostPlayer = $room->hostPlayer;
-        $guestPlayer = $room->guestPlayer;
-
+    public static function getInfo($roomId, $checkNotEmpty) {
         $isHost = null;
         $isReady = null;
-
+        $room = Room::check($roomId, $checkNotEmpty);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
         if($hostPlayer && $hostPlayer->user->id == Yii::$app->user->id){
             $isHost = true;
         }else if($guestPlayer && $guestPlayer->user->id == Yii::$app->user->id) {
             $isHost = false;
         }
-
         if ($guestPlayer) {
             $isReady = $guestPlayer->is_ready > 0;
         }
-
         return [$room, [$hostPlayer, $guestPlayer, $isHost, $isReady]];
     }
 }
