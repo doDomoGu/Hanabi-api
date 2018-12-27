@@ -125,115 +125,49 @@ class Game extends ActiveRecord
     }
 
     public static function isInGame(){
-
         list($isInRoom, $roomId) = Room::isInRoom();
-
         #不在房间中 抛出异常
         if(!$isInRoom) {
             throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
         }
-
         $game = Game::find()->where(['room_id'=>$roomId])->one();
-
-        $gameCardCount = GameCard::find()->where(['room_id'=>$roomId])->count();
-
+        $gameCardCount = (int) GameCard::find()->where(['room_id'=>$roomId])->count();
         #不在游戏中
         if(!$game) {
-
             #不在游戏中，但是有卡牌存在
             if($gameCardCount > 0) {
                 throw new \Exception(Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG,Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE);
             }
-
             #返回false 和 房间号
             return [false, $roomId];
         }
-
         #在游戏中
         #以下是检查游戏状态
-
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
-
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
         if(!$hostPlayer || !$guestPlayer) {
             throw new \Exception(Game::EXCEPTION_WRONG_PLAYERS_MSG,Game::EXCEPTION_WRONG_PLAYERS_CODE);
         }
-
         if(!$isReady) {
             throw new \Exception(Game::EXCEPTION_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_GUEST_PLAYER_NOT_READY_CODE);
         }
-
         if($game->chance_num < 1){
             throw new \Exception(Game::EXCEPTION_WRONG_CHANCE_NUM_MSG,Game::EXCEPTION_WRONG_CHANCE_NUM_CODE);
         }
-
         if($game->cue_num < 0){
             throw new \Exception(Game::EXCEPTION_WRONG_CUE_NUM_MSG,Game::EXCEPTION_WRONG_CUE_NUM_CODE);
         }
-
         #游戏中，但是总卡牌数不对
-        if($gameCardCount <> Card::CARD_NUM_ALL){
+        if($gameCardCount != Card::CARD_NUM_ALL){
             throw new \Exception(Game::EXCEPTION_WRONG_CARD_NUM_ALL_MSG,Game::EXCEPTION_WRONG_CARD_NUM_ALL_CODE);
         }
-
-
         return [true, $roomId];
-
     }
 
-
-    public static function start(){
-
-        list($isInGame, $roomId) = Game::isInGame();
-
-        if($isInGame) {
-            throw new \Exception(Game::EXCEPTION_START_GAME_HAS_STARTED_MSG,Game::EXCEPTION_START_GAME_HAS_STARTED_CODE);
-        }
-
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
-
-        if(!$hostPlayer || !$guestPlayer) {
-            throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_PLAYERS_MSG,Game::EXCEPTION_START_GAME_WRONG_PLAYERS_CODE);
-        }
-
-        if(!$isReady) {
-            throw new \Exception(Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE);
-        }
-
-        Game::createOne($roomId);
-
-        //新建log 相关
-        $history = new History();
-        $history->room_id = $room->id;
-        $history->status = History::STATUS_PLAYING;
-        $history->score = 0;
-        if($history->save()){
-            $historyPlayer = new HistoryPlayer();
-            $historyPlayer->history_id = $history->id;
-            $historyPlayer->user_id = $hostPlayer->user_id;
-            $historyPlayer->is_host = 1;
-            $historyPlayer->save();
-
-            $historyPlayer = new HistoryPlayer();
-            $historyPlayer->history_id = $history->id;
-            $historyPlayer->user_id = $guestPlayer->user_id;
-            $historyPlayer->is_host = 0;
-            $historyPlayer->save();
-        }else{
-            throw new \Exception(Game::EXCEPTION_CREATE_HISTORY_FAILURE_MSG,Game::EXCEPTION_CREATE_HISTORY_FAILURE_CODE);
-        }
-
-        $cache = Yii::$app->cache;
-        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
-
-    }
-
-    private static function createOne($room_id){
-        $room = Room::find()->where(['id'=>$room_id])->one();
+    public static function createOne($roomId){
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
         if(!$room){
             throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_ROOM_MSG,Game::EXCEPTION_START_GAME_WRONG_ROOM_CODE);
         }
-
         $game = new Game();
         $game->room_id = $room->id;
         $game->round_num = 1;
@@ -242,58 +176,37 @@ class Game extends ActiveRecord
         $game->chance_num = Game::DEFAULT_CHANCE;
         $game->status = Game::STATUS_PLAYING;
         $game->score = 0;
-
         if($game->save()){
-
-            GameCard::initLibrary($room_id);
-
+            GameCard::initLibrary($roomId);
             for($i=0;$i<5;$i++){ //主机/客机玩家 各模五张牌
-                GameCard::drawCard($room_id,true);
-                GameCard::drawCard($room_id,false);
+                GameCard::drawCard($roomId,true);
+                GameCard::drawCard($roomId,false);
             }
-
+            #创建游戏History
+            $history = new History();
+            $history->room_id = $room->id;
+            $history->status = History::STATUS_PLAYING;
+            $history->score = 0;
+            if($history->save()){
+                $historyPlayer = new HistoryPlayer();
+                $historyPlayer->history_id = $history->id;
+                $historyPlayer->user_id = $hostPlayer->user_id;
+                $historyPlayer->is_host = 1;
+                $historyPlayer->save();
+                $historyPlayer = new HistoryPlayer();
+                $historyPlayer->history_id = $history->id;
+                $historyPlayer->user_id = $guestPlayer->user_id;
+                $historyPlayer->is_host = 0;
+                $historyPlayer->save();
+            }else{
+                throw new \Exception(Game::EXCEPTION_CREATE_HISTORY_FAILURE_MSG,Game::EXCEPTION_CREATE_HISTORY_FAILURE_CODE);
+            }
         }else{
             throw new \Exception(Game::EXCEPTION_CREATE_GAME_FAILURE_MSG,Game::EXCEPTION_CREATE_GAME_FAILURE_CODE);
         }
     }
 
-
-    public static function end(){
-
-        list($isInGame, $roomId) = Game::isInGame();
-
-        if(!$isInGame) {
-            throw new \Exception(Game::EXCEPTION_END_GAME_HAS_NO_GAME_MSG,Game::EXCEPTION_END_GAME_HAS_NO_GAME_CODE);
-        }
-
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
-
-        if(!$isHost){
-            throw new \Exception(Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE);
-        }
-
-        // 1.删除游戏数据
-        Game::deleteAll(['room_id'=>$roomId]);
-        GameCard::deleteAll(['room_id'=>$roomId]);
-
-        // 2.修改玩家2状态为"未准备"
-        $guest_player = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>0])->one();
-        if($guest_player){
-            $guest_player->is_ready = 0;
-            $guest_player->save();
-        }
-
-        //游戏结束 修改日志状态
-        $history = History::find()->where(['room_id'=>$room->id,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            $history->status = History::STATUS_END;
-            $history->save();
-        }
-
-        $cache = Yii::$app->cache;
-        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
-
+    public static function getInfo($roomId){
     }
 
     public static function info($mode='all',$force=false){
@@ -436,115 +349,6 @@ class Game extends ActiveRecord
         return $data;
     }
 
-    #弃牌操作
-    public static function discard($typeOrd){
-
-        list($isInGame, $roomId) = Game::isInGame();
-
-        if(!$isInGame) {
-            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_IN_GAME_MSG,Game::EXCEPTION_DISCARD_NOT_IN_GAME_CODE);
-        }
-
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
-
-        $game = Game::find()->where(['room_id'=>$roomId])->one();
-
-        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
-            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE);
-        }
-
-        //丢弃一张牌
-        $cardOrd = GameCard::discardCard($roomId, $isHost, $typeOrd);
-
-        //恢复一个提示数
-        Game::recoverCue($roomId);
-
-        //插入日志 record
-        //TODO
-        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId,$cardOrd);
-            if($get_content_success){
-                $historyLog = new HistoryLog();
-                $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
-                $historyLog->content_param = $content_param;
-                $historyLog->content = $content;
-                $historyLog->save();
-                //var_dump($historyLog->errors);exit;
-            }
-        }
-
-        //交换(下一个)回合
-        Game::changeRoundPlayer($roomId);
-
-        $cache = Yii::$app->cache;
-        $cache->delete('game_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('game_info_no_update_'.$guestPlayer->user_id);
-
-    }
-
-    #出牌操作
-    public static function play($typeOrd){
-
-        list($isInGame, $roomId) = Game::isInGame();
-
-        if(!$isInGame) {
-            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_IN_GAME_MSG,Game::EXCEPTION_DISCARD_NOT_IN_GAME_CODE);
-        }
-
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId);
-
-        $game = Game::find()->where(['room_id'=>$roomId])->one();
-
-        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
-            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE);
-        }
-
-        list($data['play_result'],$cardOrd) = GameCard::playCard($roomId, $isHost, $typeOrd);
-
-        //给这个玩家摸一张牌
-        GameCard::drawCard($roomId,$isHost);
-
-        if($data['play_result']){
-            //恢复一个提示数
-            Game::recoverCue($roomId);
-        }else{
-            //消耗一次机会
-            Game::useChance($roomId);
-
-            $result = Game::checkGame();
-            if(!$result){
-                Game::end();
-            }
-        }
-
-
-        //插入日志 record
-        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($roomId,$cardOrd,$data['play_result']);
-            if($get_content_success){
-                $historyLog = new HistoryLog();
-                $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
-                $historyLog->content_param = $content_param;
-                $historyLog->content = $content;
-                $historyLog->save();
-                //var_dump($historyLog->errors);exit;
-            }
-        }
-
-
-        //交换(下一个)回合
-        Game::changeRoundPlayer($roomId);
-
-        $cache = Yii::$app->cache;
-        $cache->delete('game_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('game_info_no_update_'.$guestPlayer->user_id);
-    }
-
-
     //提示
     public static function cue($ord,$type){
 
@@ -661,7 +465,7 @@ class Game extends ActiveRecord
         return [$success,$msg,$data];
     }
 
-    private static function recoverCue($room_id){
+    public static function recoverCue($room_id){
         $game = Game::find()->where(['room_id'=>$room_id])->one();
         if($game){
             if($game->cue_num < Game::DEFAULT_CUE){
@@ -686,7 +490,7 @@ class Game extends ActiveRecord
         return false;
     }
 
-    private static function useChance($room_id){
+    public static function useChance($room_id){
         $game = Game::find()->where(['room_id'=>$room_id])->one();
         if($game){
             if($game->chance_num > 0){
@@ -698,7 +502,7 @@ class Game extends ActiveRecord
         return false;
     }
 
-    private static function changeRoundPlayer($room_id){
+    public static function changeRoundPlayer($room_id){
         $game = Game::find()->where(['room_id'=>$room_id])->one();
         if($game){
             $game->round_player_is_host = $game->round_player_is_host==1?0:1;
@@ -709,7 +513,7 @@ class Game extends ActiveRecord
         return false;
     }
 
-    private static function checkGame(){
+    public static function checkGame(){
         $result = false;
         $msg = '';
         $user_id = Yii::$app->user->id;
