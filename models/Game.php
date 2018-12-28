@@ -349,122 +349,6 @@ class Game extends ActiveRecord
         return $data;
     }
 
-    //提示
-    public static function cue($ord,$type){
-
-        list($isInGame, $roomId) = Game::isInGame();
-
-        $success = false;
-        $msg = '';
-        $data = [];
-        $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            $game = Game::find()->where(['room_id'=>$room_player->room_id,'status'=>Game::STATUS_PLAYING])->one();
-            if($game){
-                if($game->round_player_is_host==$room_player->is_host){
-                    $gameCardCount = GameCard::find()->where(['room_id'=>$game->room_id])->count();
-                    if($gameCardCount==Card::CARD_NUM_ALL){
-                        //提示一张牌
-                        list($success,$cards_ord, $msg) = GameCard::cue($game->room_id,$ord,$type);
-
-                        if($success){
-                            //插入日志 record
-                            //TODO
-                            $history = History::find()->where(['room_id'=>$game->room_id,'status'=>History::STATUS_PLAYING])->one();
-                            if($history){
-                                list($get_content_success,$content_param,$content) = HistoryLog::getContentByCue($game->room_id,$ord,$type,$cards_ord);
-                                if($get_content_success){
-                                    $historyLog = new HistoryLog();
-                                    $historyLog->history_id = $history->id;
-                                    $historyLog->type = HistoryLog::TYPE_CUE_CARD;
-                                    $historyLog->content_param = $content_param;
-                                    $historyLog->content = $content;
-                                    $historyLog->save();
-                                    //var_dump($historyLog->errors);exit;
-                                }
-                            }
-
-                            //消耗一个提示数
-                            Game::useCue($game->room_id);
-
-                            //交换(下一个)回合
-                            Game::changeRoundPlayer($game->room_id);
-
-                            $cache = Yii::$app->cache;
-                            $cache_key = 'game_info_no_update_'.$user_id;
-                            $cache->set($cache_key,false);
-
-                            $other_user = RoomPlayer::find()->where(['room_id'=>$game->room_id,'is_host'=>$room_player->is_host?0:1])->one();
-                            if($other_user){
-                                $cache_key2 = 'game_info_no_update_'.$other_user->user_id;
-                                $cache->set($cache_key2,false);
-                            }
-
-                        }
-
-
-                    }else{
-                        $msg = '总卡牌数错误';
-                    }
-                }else{
-                    $msg = '当前不是你的回合';
-                }
-            }else{
-                $msg = '你所在房间游戏未开始/或者有多个游戏，错误';
-            }
-        }else{
-            $msg = '你不在房间中/不止在一个房间中，错误';
-        }
-
-        return [$success,$msg,$data];
-    }
-
-    /*
-     *
-     * 自动打牌（挂机）
-     *
-     * 1. 有剩余提示数 则随机提示一张牌的 颜色或者数字
-     *
-     * 2. 没有剩余提示数 则随机丢弃一张牌
-     *
-     */
-    public static function autoPlay(){
-        $success = false;
-        $msg = '';
-        $data = [];
-        $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            $game = Game::find()->where(['room_id'=>$room_player->room_id,'status'=>Game::STATUS_PLAYING])->one();
-            if($game){
-                if($game->round_player_is_host==$room_player->is_host){
-                    if($game->cue_num>0){
-
-                        $rand = $room_player->is_host == 1 ? rand(5,9) : rand(0,4);
-
-                        return Game::cue($rand,rand(0,1) ? 'num':'color');
-
-                    }else{
-
-                        $rand = $room_player->is_host != 1 ? rand(5,9) : rand(0,4);
-
-                        return Game::discard($rand);
-
-                    }
-                }else{
-                    $msg = '当前不是你的回合';
-                }
-            }else{
-                $msg = '你所在房间游戏未开始/或者有多个游戏，错误';
-            }
-        }else{
-            $msg = '你不在房间中/不止在一个房间中，错误';
-        }
-
-        return [$success,$msg,$data];
-    }
-
     public static function recoverCue($room_id){
         $game = Game::find()->where(['room_id'=>$room_id])->one();
         if($game){
@@ -478,7 +362,7 @@ class Game extends ActiveRecord
     }
 
 
-    private static function useCue($room_id){
+    public static function useCue($room_id){
         $game = Game::find()->where(['room_id'=>$room_id])->one();
         if($game){
             if($game->cue_num > 0 ){
