@@ -167,7 +167,13 @@ class GameCard extends ActiveRecord
     }
 
 
-    public static function discardCard($roomId, $isHost, $typeOrd){
+    public static function discardCard($roomId, $typeOrd){
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+        $game = Game::find()->where(['room_id'=>$roomId])->one();
+        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
+            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE);
+        }
+
         #根据isHost，选择GameCard的type
         $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
 
@@ -197,10 +203,38 @@ class GameCard extends ActiveRecord
         #摸牌
         GameCard::drawCard($roomId, $isHost);
 
-        return $cardOrd;
+
+        //恢复一个提示数
+        Game::recoverCue($roomId);
+        //插入日志 record
+        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
+        if($history){
+            list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId,$cardOrd);
+            if($get_content_success){
+                $historyLog = new HistoryLog();
+                $historyLog->history_id = $history->id;
+                $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
+                $historyLog->content_param = $content_param;
+                $historyLog->content = $content;
+                $historyLog->save();
+                //var_dump($historyLog->errors);exit;
+            }
+        }
+        //交换(下一个)回合
+        Game::changeRoundPlayer($roomId);
+
+        $cache = Yii::$app->cache;
+        $cache->delete('game_info_no_update_'.$hostPlayer->user_id);
+        $cache->delete('game_info_no_update_'.$guestPlayer->user_id);
+
     }
 
-    public static function playCard($roomId, $isHost, $typeOrd){
+    public static function playCard($roomId, $typeOrd){
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+        $game = Game::find()->where(['room_id'=>$roomId])->one();
+        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
+            throw new \Exception(Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE);
+        }
 
         #根据isHost，选择GameCard的type
         $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
@@ -244,7 +278,54 @@ class GameCard extends ActiveRecord
         GameCard::moveHandCardsByLackOfCard($roomId, $isHost, $typeOrd);
 
 
-        return [$result,$cardOrd];
+        //给这个玩家摸一张牌
+        GameCard::drawCard($roomId,$isHost);
+
+        if($result){
+            //恢复一个提示数
+            Game::recoverCue($roomId);
+        }else{
+            //消耗一次机会
+            list($result, $chance_num) = Game::useChance($roomId);
+
+            //Game::check($roomId);
+            if($result){
+                if($chance_num === 0) {
+                    Game::end();
+                }
+            }else{
+                //TODO  使用机会失败
+            }
+        }
+
+
+        //插入日志 record
+        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
+        if($history){
+            list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($roomId,$cardOrd,$result);
+            if($get_content_success){
+                $historyLog = new HistoryLog();
+                $historyLog->history_id = $history->id;
+                $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
+                $historyLog->content_param = $content_param;
+                $historyLog->content = $content;
+                $historyLog->save();
+                //var_dump($historyLog->errors);exit;
+            }
+        }
+
+
+        //交换(下一个)回合
+        Game::changeRoundPlayer($roomId);
+
+        $cache = Yii::$app->cache;
+        $cache->delete('game_info_no_update_'.$hostPlayer->user_id);
+        $cache->delete('game_info_no_update_'.$guestPlayer->user_id);
+
+
+
+
+//        return [$result,$cardOrd];
     }
 
 

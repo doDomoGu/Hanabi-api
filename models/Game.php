@@ -67,6 +67,10 @@ class Game extends ActiveRecord
     const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG   = '弃牌操作，不是该玩家的回合';
     const EXCEPTION_START_GAME_NOT_HOST_PLAYER_CODE  = 20018;
     const EXCEPTION_START_GAME_NOT_HOST_PLAYER_MSG   = '开始游戏操作，操作人不是主机玩家';
+    const EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE  = 20019;
+    const EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG   = '出牌操作，不是该玩家的回合';
+    const EXCEPTION_PLAY_NOT_IN_GAME_CODE  = 20020;
+    const EXCEPTION_PLAY_NOT_IN_GAME_MSG   = '出牌操作，不在游戏中';
 
 
     /**
@@ -126,7 +130,7 @@ class Game extends ActiveRecord
         ];
     }
 
-    public static function isInGame(){
+    public static function isPlaying(){
         list($isInRoom, $roomId) = Room::isInRoom();
         #不在房间中 抛出异常
         if(!$isInRoom) {
@@ -265,59 +269,7 @@ class Game extends ActiveRecord
     }
 
     public static function getInfo($roomId){
-    }
 
-    public static function info($mode='all',$force=false){
-
-        $cache = Yii::$app->cache;
-
-        $cacheKey  = 'game_info_no_update_'.Yii::$app->user->id;  //存在则不更新游戏信息
-
-        if(!$force) {
-
-            if($cache->get($cacheKey)) {
-
-                return ['noUpdate'=>true];
-
-            }
-        }
-
-        #判断是否在游戏中， 获得房间ID
-        list($isInGame, $roomId) = Game::isInGame();
-
-        if(!$isInGame) {
-
-            return ['isPlaying'=>false,'roomId' => $roomId];
-
-        }
-
-        $data = [];
-
-        $data['isPlaying'] = true;
-        $data['roomId'] = $roomId;
-
-        if ($mode == 'all') {
-
-            $game = Game::find()->where(['room_id'=>$roomId])->one();
-            
-            $data['game'] = [
-                'roundNum' => $game->round_num,
-                'roundPlayerIsHost' => $game->round_player_is_host == 1,
-            ];
-
-            $cardInfo = Game::getCardInfo($game->room_id);
-
-            $data['card'] = $cardInfo;
-
-
-            list(, , $data['log']) = HistoryLog::getList($game->room_id);
-
-            $data['game']['lastUpdated'] = HistoryLog::getLastUpdate($game->room_id);
-
-            $cache->set($cacheKey, true);
-        }
-
-        return $data;
     }
 
     public static function getCardInfo($room_id){

@@ -37,9 +37,9 @@ class MyGameController extends MyActiveController
      */
 
     public function actionStart(){
-        list($isInGame, $roomId) = Game::isInGame();
+        list($isPlaying, $roomId) = Game::isPlaying();
         # error：游戏已经开始
-        if($isInGame) {
+        if($isPlaying) {
             throw new \Exception(Game::EXCEPTION_START_GAME_HAS_STARTED_MSG,Game::EXCEPTION_START_GAME_HAS_STARTED_CODE);
         }
         list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
@@ -69,8 +69,8 @@ class MyGameController extends MyActiveController
      */
 
     public function actionEnd(){
-        list($isInGame, $roomId) = Game::isInGame();
-        if(!$isInGame) {
+        list($isPlaying, $roomId) = Game::isPLaying();
+        if(!$isPlaying) {
             throw new \Exception(Game::EXCEPTION_END_GAME_HAS_NO_GAME_MSG,Game::EXCEPTION_END_GAME_HAS_NO_GAME_CODE);
         }
         list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
@@ -96,11 +96,34 @@ class MyGameController extends MyActiveController
 
     public function actionInfo(){
         $mode = Yii::$app->request->get('mode','all');
-
         $force = !!Yii::$app->request->get('force',false);
-
-        return Game::info($mode, $force);
-
+        $cache = Yii::$app->cache;
+        $cacheKey  = 'game_info_no_update_'.Yii::$app->user->id;  //存在则不更新游戏信息
+        if(!$force) {
+            if($cache->get($cacheKey)) {
+                return ['noUpdate'=>true];
+            }
+        }
+        #判断是否在游戏中， 获得房间ID
+        list($isPlaying, $roomId) = Game::isPlaying();
+        $data = [];
+        $data['isPlaying'] = $isPlaying;
+        $data['roomId'] = $roomId;
+        if(!$isPlaying) {
+            return $data;
+        }
+        if ($mode == 'all') {
+            $game = Game::find()->where(['room_id'=>$roomId])->one();
+            $data['game'] = [
+                'roundNum' => $game->round_num,
+                'roundPlayerIsHost' => $game->round_player_is_host == 1,
+            ];
+            $data['card'] = Game::getCardInfo($game->room_id);
+            list(, , $data['log']) = HistoryLog::getList($game->room_id);
+            $data['game']['lastUpdated'] = HistoryLog::getLastUpdate($game->room_id);
+            $cache->set($cacheKey, true);
+        }
+        return $data;
     }
 
     /**
@@ -115,40 +138,13 @@ class MyGameController extends MyActiveController
      */
     public function actionDoDiscard(){
         $typeOrd = Yii::$app->request->post('cardSelectOrd');
-        list($isInGame, $roomId) = Game::isInGame();
-        if(!$isInGame) {
+        list($isPlaying, $roomId) = Game::isPlaying();
+        if(!$isPlaying) {
             throw new \Exception(Game::EXCEPTION_DISCARD_NOT_IN_GAME_MSG,Game::EXCEPTION_DISCARD_NOT_IN_GAME_CODE);
         }
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
-        $game = Game::find()->where(['room_id'=>$roomId])->one();
-        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
-            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE);
-        }
-        //丢弃一张牌
-        $cardOrd = GameCard::discardCard($roomId, $isHost, $typeOrd);
-        //恢复一个提示数
-        Game::recoverCue($roomId);
-        //插入日志 record
-        //TODO
-        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId,$cardOrd);
-            if($get_content_success){
-                $historyLog = new HistoryLog();
-                $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
-                $historyLog->content_param = $content_param;
-                $historyLog->content = $content;
-                $historyLog->save();
-                //var_dump($historyLog->errors);exit;
-            }
-        }
-        //交换(下一个)回合
-        Game::changeRoundPlayer($roomId);
 
-        $cache = Yii::$app->cache;
-        $cache->delete('game_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('game_info_no_update_'.$guestPlayer->user_id);
+        //丢弃一张牌
+        GameCard::discardCard($roomId, $typeOrd);
     }
 
     /**
@@ -163,62 +159,14 @@ class MyGameController extends MyActiveController
      */
     public function actionDoPlay(){
         $typeOrd = Yii::$app->request->post('cardSelectOrd');
-        list($isInGame, $roomId) = Game::isInGame();
-        if(!$isInGame) {
-            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_IN_GAME_MSG,Game::EXCEPTION_DISCARD_NOT_IN_GAME_CODE);
+        list($isPlaying, $roomId) = Game::isPlaying();
+        if(!$isPlaying) {
+            throw new \Exception(Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE);
         }
-        list($game) = Game::getInfo($roomId);
+//        list($game) = Game::getInfo($roomId);
 
+        GameCard::playCard($roomId, $typeOrd);
 
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
-        $game = Game::find()->where(['room_id'=>$roomId])->one();
-        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
-            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE);
-        }
-        list($data['play_result'],$cardOrd) = GameCard::playCard($roomId, $isHost, $typeOrd);
-        //给这个玩家摸一张牌
-        GameCard::drawCard($roomId,$isHost);
-
-        if($data['play_result']){
-            //恢复一个提示数
-            Game::recoverCue($roomId);
-        }else{
-            //消耗一次机会
-            list($result, $chance_num) = Game::useChance($roomId);
-
-            //Game::check($roomId);
-            if($result){
-                if($chance_num === 0) {
-                    Game::end();
-                }
-            }else{
-                //TODO  使用机会失败
-            }
-        }
-
-
-        //插入日志 record
-        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($roomId,$cardOrd,$data['play_result']);
-            if($get_content_success){
-                $historyLog = new HistoryLog();
-                $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
-                $historyLog->content_param = $content_param;
-                $historyLog->content = $content;
-                $historyLog->save();
-                //var_dump($historyLog->errors);exit;
-            }
-        }
-
-
-        //交换(下一个)回合
-        Game::changeRoundPlayer($roomId);
-
-        $cache = Yii::$app->cache;
-        $cache->delete('game_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('game_info_no_update_'.$guestPlayer->user_id);
 
     }
 
@@ -239,7 +187,7 @@ class MyGameController extends MyActiveController
 
         $type = Yii::$app->request->post('cueType');
 
-        list($isInGame, $roomId) = Game::isInGame();
+        list($isPlaying, $roomId) = Game::isPlaying();
 
         $success = false;
         $msg = '';
