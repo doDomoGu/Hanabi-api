@@ -63,8 +63,10 @@ class Game extends ActiveRecord
     const EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG   = '结束游戏操作，操作玩家不是主机玩家';
     const EXCEPTION_DISCARD_NOT_IN_GAME_CODE  = 20016;
     const EXCEPTION_DISCARD_NOT_IN_GAME_MSG   = '弃牌操作，不在游戏中';
-    const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE  = 20016;
+    const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE  = 20017;
     const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG   = '弃牌操作，不是该玩家的回合';
+    const EXCEPTION_START_GAME_NOT_HOST_PLAYER_CODE  = 20018;
+    const EXCEPTION_START_GAME_NOT_HOST_PLAYER_MSG   = '开始游戏操作，操作人不是主机玩家';
 
 
     /**
@@ -163,6 +165,36 @@ class Game extends ActiveRecord
         return [true, $roomId];
     }
 
+    public static function check($roomId, $notCheck = []){
+
+        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+
+        $game = Game::find()->where(['room_id'=>$roomId])->one();
+        $gameCardCount = (int) GameCard::find()->where(['room_id'=>$roomId])->count();
+
+        if(!$hostPlayer || !$guestPlayer) {
+            throw new \Exception(Game::EXCEPTION_WRONG_PLAYERS_MSG,Game::EXCEPTION_WRONG_PLAYERS_CODE);
+        }
+        if(!$isReady) {
+            throw new \Exception(Game::EXCEPTION_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_GUEST_PLAYER_NOT_READY_CODE);
+        }
+        /*if ($game->status != Game::STATUS_PLAYING) {
+
+        }*/
+        if(!in_array('chance_num', $notCheck)){
+            if($game->chance_num < 1){
+                throw new \Exception(Game::EXCEPTION_WRONG_CHANCE_NUM_MSG,Game::EXCEPTION_WRONG_CHANCE_NUM_CODE);
+            }
+        }
+        if($game->cue_num < 0){
+            throw new \Exception(Game::EXCEPTION_WRONG_CUE_NUM_MSG,Game::EXCEPTION_WRONG_CUE_NUM_CODE);
+        }
+        #游戏中，但是总卡牌数不对
+        if($gameCardCount != Card::CARD_NUM_ALL){
+            throw new \Exception(Game::EXCEPTION_WRONG_CARD_NUM_ALL_MSG,Game::EXCEPTION_WRONG_CARD_NUM_ALL_CODE);
+        }
+    }
+
     public static function createOne($roomId){
         list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
         if(!$room){
@@ -204,6 +236,32 @@ class Game extends ActiveRecord
         }else{
             throw new \Exception(Game::EXCEPTION_CREATE_GAME_FAILURE_MSG,Game::EXCEPTION_CREATE_GAME_FAILURE_CODE);
         }
+
+        $cache = Yii::$app->cache;
+        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
+        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
+    }
+
+    public static function deleteOne($roomId){
+        list($room, list($hostPlayer, $guestPlayer)) = Room::getInfo($roomId, true);
+        # 删除游戏数据
+        Game::deleteAll(['room_id'=>$roomId]);
+        GameCard::deleteAll(['room_id'=>$roomId]);
+        # 修改客机玩家状态为"未准备"
+        $guest_player = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>0])->one();
+        if($guest_player){
+            $guest_player->is_ready = 0;
+            $guest_player->save();
+        }
+        #游戏结束 修改日志状态
+        $history = History::find()->where(['room_id'=>$room->id,'status'=>History::STATUS_PLAYING])->one();
+        if($history){
+            $history->status = History::STATUS_END;
+            $history->save();
+        }
+        $cache = Yii::$app->cache;
+        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
+        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
     }
 
     public static function getInfo($roomId){
@@ -380,10 +438,10 @@ class Game extends ActiveRecord
             if($game->chance_num > 0){
                 $game->chance_num = $game->chance_num - 1;
                 if($game->save())
-                    return [true,$game->chance_num];
+                    return [true, (int) $game->chance_num];
             }
         }
-        return false;
+        return [false, -1];
     }
 
     public static function changeRoundPlayer($room_id){
@@ -397,36 +455,5 @@ class Game extends ActiveRecord
         return false;
     }
 
-    public static function checkGame(){
-        $result = false;
-        $msg = '';
-        $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player) {
-            $room = Room::find()->where(['id' => $room_player->room_id])->one();
-            if ($room) {
-                $game = Game::find()->where(['room_id' => $room->id])->one();
-                if ($game) {
-                    if ($game->status == Game::STATUS_PLAYING) {
-                        if ($game->chance_num > 0) {
-                            //TODO 更多检测
 
-                            $result = true;
-                        } else {
-                            $msg = '游戏剩余机会次数为0';
-                        }
-                    } else {
-                        $msg = '游戏不是游玩状态';
-                    }
-                } else {
-                    $msg = '游戏不存在';
-                }
-            }else{
-                $msg = '房间不存在';
-            }
-        }else{
-            $msg = '不在房间中';
-        }
-        return $result;
-    }
 }

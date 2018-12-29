@@ -38,20 +38,24 @@ class MyGameController extends MyActiveController
 
     public function actionStart(){
         list($isInGame, $roomId) = Game::isInGame();
+        # error：游戏已经开始
         if($isInGame) {
             throw new \Exception(Game::EXCEPTION_START_GAME_HAS_STARTED_MSG,Game::EXCEPTION_START_GAME_HAS_STARTED_CODE);
         }
         list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+        # error：主机/客机玩家不全都存在
         if(!$hostPlayer || !$guestPlayer) {
             throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_PLAYERS_MSG,Game::EXCEPTION_START_GAME_WRONG_PLAYERS_CODE);
         }
+        # error：操作人不是主机玩家
+        if(!$isHost) {
+            throw new \Exception(Game::EXCEPTION_START_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_START_GAME_NOT_HOST_PLAYER_CODE);
+        }
+        # error：客机玩家没有准备
         if(!$isReady) {
             throw new \Exception(Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE);
         }
         Game::createOne($roomId);
-        $cache = Yii::$app->cache;
-        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
     }
 
     /**
@@ -70,30 +74,12 @@ class MyGameController extends MyActiveController
             throw new \Exception(Game::EXCEPTION_END_GAME_HAS_NO_GAME_MSG,Game::EXCEPTION_END_GAME_HAS_NO_GAME_CODE);
         }
         list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+
         if(!$isHost){
             throw new \Exception(Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE);
         }
-        # 删除游戏数据
-        Game::deleteAll(['room_id'=>$roomId]);
-        GameCard::deleteAll(['room_id'=>$roomId]);
-        # 修改客机玩家状态为"未准备"
-        $guest_player = RoomPlayer::find()->where(['room_id'=>$room->id,'is_host'=>0])->one();
-        if($guest_player){
-            $guest_player->is_ready = 0;
-            $guest_player->save();
-        }
-        #游戏结束 修改日志状态
-        $history = History::find()->where(['room_id'=>$room->id,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            $history->status = History::STATUS_END;
-            $history->save();
-        }
-        $cache = Yii::$app->cache;
-        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
+        Game::deleteOne($roomId);
     }
-
-
 
     /**
      * @api {get} /my-game/info 获取游戏信息
@@ -116,9 +102,6 @@ class MyGameController extends MyActiveController
         return Game::info($mode, $force);
 
     }
-
-
-
 
     /**
      * @api {post} /my-game/do-discard 弃牌操作
@@ -201,14 +184,15 @@ class MyGameController extends MyActiveController
             Game::recoverCue($roomId);
         }else{
             //消耗一次机会
-            Game::useChance($roomId);
+            list($result, $chance_num) = Game::useChance($roomId);
 
-            $result = Game::checkGame();
-            if(!$result){
-
-                //TODO
-
-                //Game::end();
+            //Game::check($roomId);
+            if($result){
+                if($chance_num === 0) {
+                    Game::end();
+                }
+            }else{
+                //TODO  使用机会失败
             }
         }
 
