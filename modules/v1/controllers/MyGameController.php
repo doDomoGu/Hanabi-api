@@ -143,8 +143,8 @@ class MyGameController extends MyActiveController
             throw new \Exception(Game::EXCEPTION_DISCARD_NOT_IN_GAME_MSG,Game::EXCEPTION_DISCARD_NOT_IN_GAME_CODE);
         }
 
-        //丢弃一张牌
-        GameCard::discardCard($roomId, $typeOrd);
+        #弃牌
+        Game::discardCard($roomId, $typeOrd);
     }
 
     /**
@@ -163,10 +163,7 @@ class MyGameController extends MyActiveController
         if(!$isPlaying) {
             throw new \Exception(Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE);
         }
-//        list($game) = Game::getInfo($roomId);
-
-        GameCard::playCard($roomId, $typeOrd);
-
+        Game::playCard($roomId, $typeOrd);
 
     }
 
