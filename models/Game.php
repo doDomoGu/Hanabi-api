@@ -361,9 +361,25 @@ class Game extends ActiveRecord
         return $data;
     }
 
+    /*
+     *  出牌操作
+     *  1 判断当前玩家是否是本回合玩家
+     *  2 判断出牌是否成功
+     *      2.1 出牌成功
+     *          1 将牌移入成功燃放区域
+     *          2 游戏分数 加1
+     *          3 摸一张牌
+     *      2.2 出牌失败
+     *          1 将牌移入弃牌区
+     *          2
+     */
+
     public static function playCard($roomId, $typeOrd){
         list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
         $game = Game::find()->where(['room_id'=>$roomId])->one();
+        if(!$game){
+            throw new \Exception(GameCard::EXCEPTION_NOT_IN_GAME_MSG,GameCard::EXCEPTION_NOT_IN_GAME_CODE);
+        }
         if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
             throw new \Exception(Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE);
         }
@@ -381,54 +397,51 @@ class Game extends ActiveRecord
             throw new \Exception(GameCard::EXCEPTION_NOT_FOUND_HANDS_MSG,GameCard::EXCEPTION_NOT_FOUND_HANDS_CODE);
         }
 
-        $game = Game::find()->where(['room_id'=>$roomId])->one();
-
-        if(!$game){
-            throw new \Exception(GameCard::EXCEPTION_NOT_IN_GAME_MSG,GameCard::EXCEPTION_NOT_IN_GAME_CODE);
-        }
-
         $cardsSuccessTop = GameCard::getCardsSuccessTop($roomId);
 
-        $colorTopNum = $cardsSuccessTop[$cardSelected->color]; //对应花色的目前成功的最大数值
+        $colorTopNum = $cardsSuccessTop[$cardSelected->color];  //对应花色的目前成功的最大数值
         $num = Card::$numbers[$cardSelected->num];              //选中牌的数值
         if($colorTopNum + 1 == $num){
+            #出牌成功
             $cardSelected->type = GameCard::TYPE_SUCCEEDED;
             $cardSelected->type_ord = 0;
             $cardSelected->save();
-
-            $game->score +=1;
-            $game->save();
-
-            $result = true;
+            $playSuccess = true;
         }else{
+            #出牌失败
             $cardSelected->type = GameCard::TYPE_DISCARDED;
             $cardSelected->type_ord = GameCard::getInsertDiscardOrd($roomId);
             $cardSelected->save();
-            $result = false;
+            $playSuccess = false;
         }
+
+
+        if($playSuccess){
+            $game->score +=1;
+            $game->save();
+
+            //恢复一个提示数
+            Game::recoverCue($roomId);
+        }else{
+            //消耗一次机会
+            list($result, $chance_num) = Game::useChance($roomId);
+            if($result){
+                if($chance_num === 0) {
+                    # 失败机会次数耗尽  结束游戏
+                    Game::end();
+                }
+            }else{
+
+                //TODO  使用机会失败
+            }
+        }
+
         $cardOrd = $cardSelected->ord;
         GameCard::moveHandCardsByLackOfCard($roomId, $isHost, $typeOrd);
 
 
         //给这个玩家摸一张牌
         GameCard::drawCard($roomId,$isHost);
-
-        if($result){
-            //恢复一个提示数
-            Game::recoverCue($roomId);
-        }else{
-            //消耗一次机会
-            list($result, $chance_num) = Game::useChance($roomId);
-
-            //Game::check($roomId);
-            if($result){
-                if($chance_num === 0) {
-                    Game::end();
-                }
-            }else{
-                //TODO  使用机会失败
-            }
-        }
 
 
         //插入日志 record
@@ -460,6 +473,9 @@ class Game extends ActiveRecord
 //        return [$result,$cardOrd];
     }
 
+    public static function checkIsPlayerRound(){
+
+    }
 
 
 
@@ -622,7 +638,11 @@ class Game extends ActiveRecord
                 $game->chance_num = $game->chance_num - 1;
                 if($game->save())
                     return [true, (int) $game->chance_num];
+            }else{
+                throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
             }
+        }else{
+            throw new \Exception(Game::EXCEPTION_NOT_FOUND_GAME_MSG,Game::EXCEPTION_NOT_FOUND_GAME_CODE);
         }
         return [false, -1];
     }
