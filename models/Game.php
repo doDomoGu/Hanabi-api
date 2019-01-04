@@ -271,7 +271,7 @@ class Game extends ActiveRecord
     }
 
     public static function getInfo($roomId){
-
+        return 2;
     }
 
     public static function getCardInfo($room_id){
@@ -363,24 +363,39 @@ class Game extends ActiveRecord
 
     /*
      *  出牌操作
-     *  1 检查当前玩家是否是本回合玩家
-     *  2 判断出牌是否成功
-     *      2.1 出牌成功
-     *          1 将牌移入成功燃放区 (type_succeeded)
-     *          2 游戏分数 加一
-     *          3 恢复一个提示数（如果提示数没有超过最大值）
-     *      2.2 出牌失败
-     *          1 将牌移入弃牌区 (type_discard)
-     *          2 游戏的剩余失败机会数 减一
-     * 3 记录日志  //TODO
-     * 4 检查游戏状态，以下状态会进入游戏结束流程
-     *      3.1 游戏的剩余失败机会数(chance_num) 等于 0
-     *      3.2 牌都出完了：主客机玩家手牌数 + 牌库卡牌数 等于 0
-     *      3.3 游戏分数不能再增加 （获得满分25分或者剩余的牌（手牌+牌库的牌）都不能再被成功打出）
-     * 5 游戏没有结束，移动手牌牌序，摸一张牌，
+     *  - 检查当前玩家是否是本回合玩家
+     *  - 判断出牌是否成功
+     *      > 出牌成功
+     *          * 将牌移入成功燃放区 (type_succeeded)
+     *          * 游戏分数 加一
+     *          * 恢复一个提示数（如果提示数没有超过最大值）
+     *          * 记录"出牌成功"日志
+     *      > 出牌失败
+     *          * 将牌移入弃牌区 (type_discard)
+     *          * 游戏的剩余失败机会数 减一
+     *          * 记录"出牌失败"日志
+     *  - 检查游戏状态
+     *      > 以下状态会进入游戏结束流程
+     *          * 游戏的剩余失败机会数(chance_num) 等于 0
+     *          * 牌都出完了：主客机玩家手牌数 + 牌库卡牌数 等于 0
+     *          * 游戏分数不能再增加 （获得满分25分或者剩余的牌（手牌+牌库的牌）都不能再被成功打出）
+     *      > 继续游戏
+     *          * 移动手牌牌序
+     *          * 摸一张牌
+     *          * 交换玩家回合
+     *
      */
 
     public static function playCard($roomId, $typeOrd){
+        $myGame = MyGame::getInfo();
+
+        if($game->round_player_is_host != $isHost){
+            #不是当前玩家操作的回合
+            throw new \Exception(Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE);
+        }
+
+
+
         list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
         $game = Game::find()->where(['room_id'=>$roomId])->one();
         if(!$game){

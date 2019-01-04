@@ -6,6 +6,7 @@ use app\models\GameCard;
 use app\models\History;
 use app\models\HistoryLog;
 use app\models\HistoryPlayer;
+use app\models\MyGame;
 use app\models\Room;
 use app\models\RoomPlayer;
 use Yii;
