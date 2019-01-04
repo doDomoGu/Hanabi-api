@@ -8,16 +8,6 @@ use app\models\Room;
 
 class MyRoomController extends MyActiveController{
 
-    public function init(){
-        $this->modelClass = Room::className();
-        parent::init();
-    }
-
-    public function behaviors(){
-        $behaviors = parent::behaviors();
-        return $behaviors;
-    }
-
     /**
      * @apiDefine ParamAuthToken
      *
