@@ -112,29 +112,28 @@ class Room extends ActiveRecord
         return $this->hasOne(RoomPlayer::className(), ['room_id' => 'id'])->where(['is_host' => 0]);
     }
 
-    # 检查当前玩家是否在房间中
-    # 在房间内，检查房间内部数据是否正常，返回[true,roomId]
-    # 不在房间内，返回[false,null]
-    public static function isInRoom(){
-        $roomCount = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->count(); //房间数
-        # error：一个玩家不应该在多个房间
-        if($roomCount > 1){
-            throw new \Exception(Room::EXCEPTION_IN_MANY_ROOM_MSG,Room::EXCEPTION_IN_MANY_ROOM_CODE);
-        }
-        # 不在房间内，返回[false,null]
-        if ($roomCount !== 1){
-            return [false, null];
-        }
-        #由roomPlayer得知，玩家在房间内，开始检查房间数据
-        $roomId = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->one()->room_id; //房间ID
-        Room::check($roomId, true);
-        return [true, $roomId];
-    }
+//    # 检查当前玩家是否在房间中
+//    # 在房间内，检查房间内部数据是否正常，返回[true,roomId]
+//    # 不在房间内，返回[false,null]
+//    public static function isInRoom(){
+//        $roomCount = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->count(); //房间数
+//        # error：一个玩家不应该在多个房间
+//        if($roomCount > 1){
+//            throw new \Exception(Room::EXCEPTION_IN_MANY_ROOM_MSG,Room::EXCEPTION_IN_MANY_ROOM_CODE);
+//        }
+//        # 不在房间内，返回[false,null]
+//        if ($roomCount !== 1){
+//            return [false, null];
+//        }
+//        #由roomPlayer得知，玩家在房间内，开始检查房间数据
+//        $roomId = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->one()->room_id; //房间ID
+//        Room::check($roomId, true);
+//        return [true, $roomId];
+//    }
 
     # 检查房间状态
     # 参数：$roomId
-    # 参数：$checkNotEmpty 是否检查房间不为空 （至少有一个主机玩家）
-    private static function check($roomId, $checkNotEmpty){
+    public static function check($roomId){
         $room = Room::find()->where(['id'=>$roomId])->one(); //房间对象
         # error: 房间不存在
         if(!$room){
@@ -148,7 +147,7 @@ class Room extends ActiveRecord
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
         # error: 没有主机玩家
-        if($checkNotEmpty && !$hostPlayer) {
+        if($roomPlayersCount > 0 && !$hostPlayer) {
             throw new \Exception(Room::EXCEPTION_NO_HOST_PLAYER_MSG, Room::EXCEPTION_NO_HOST_PLAYER_CODE);
         }
         # error: 找不到对应的（主机）玩家信息
@@ -163,20 +162,10 @@ class Room extends ActiveRecord
     }
 
 
-    public static function getInfo($roomId, $checkNotEmpty) {
-        $isHost = null;
-        $isReady = null;
-        $room = Room::check($roomId, $checkNotEmpty);
+    public static function getInfo($roomId) {
+        $room = Room::check($roomId);
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
-        if($hostPlayer && $hostPlayer->user->id == Yii::$app->user->id){
-            $isHost = true;
-        }else if($guestPlayer && $guestPlayer->user->id == Yii::$app->user->id) {
-            $isHost = false;
-        }
-        if ($guestPlayer) {
-            $isReady = $guestPlayer->is_ready > 0;
-        }
-        return [$room, [$hostPlayer, $guestPlayer, $isHost, $isReady]];
+        return [$room, [$hostPlayer, $guestPlayer]];
     }
 }

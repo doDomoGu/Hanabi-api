@@ -2,6 +2,9 @@
 
 namespace app\modules\v1\controllers;
 
+use app\components\cache\MyRoomCache;
+use app\components\cache\RoomListCache;
+use app\models\MyRoom;
 use app\models\RoomPlayer;
 use Yii;
 use app\models\Room;
@@ -19,36 +22,36 @@ class MyRoomController extends MyActiveController{
      *
      * 玩家对应的房间
      */
+
+    /*
+     *  - 根据 请求的参数force 进行判断
+     *      > false
+     *          * 读取 当前用户的房间信息无需更新标志 (MyRoomCache::ROOM_INFO_NO_UPDATED_FLAG_KEY_PREFIX.[user->id])
+     *              > true ['noUpdate'=>true]    【END】
+     *              > 不存在 或者 false 继续【读取房间数据】
+     *      > true
+     *          * 强制【读取房间数据】
+     *  - 读取房间数据
+     *  - 更新 当前用户的房间信息无需更新标志 = true
+     *
+     */
     public function actionInfo(){
-        $mode = Yii::$app->request->get('mode','all');  //all:返回全部房间数据  simple:只返回roomId
-        $force = Yii::$app->request->get('force',false); //是否强制读取数据库，即跳过cache
-        $cache = Yii::$app->cache;
-        $cacheKey  = 'room_info_no_update_'.Yii::$app->user->id;  //存在则不更新房间信息
+        $force = !!Yii::$app->request->get('force',false); //是否强制读取数据库，即跳过cache
         if(!$force) {
-            if($cache->get($cacheKey)) {
+            if(MyRoomCache::isNoUpdate()){
                 return ['noUpdate'=>true];
             }
         }
-        list($isInRoom, $roomId) = Room::isInRoom();
-        # 不在房间中，返回房间ID：-1
-        if(!$isInRoom){
-            return ['roomId'=>-1];
-        }
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
 
-        $data = [];
-        $data['roomId'] = $roomId;
+        list($isInRoom, $info) = MyRoom::getInfo();
+//        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = MyRoom::getInfo();
 
-        if ($mode == 'all') {
-            /*$game = Game::find()->where(['room_id' => $room->id])->one();
-            if ($game) {
-                //如果游戏已经开始 isGameStart => true
-                $data['gameStart'] = true;
-            }*/
-            $cache->set($cacheKey, true);
-
-            $data['isHost'] = $isHost;
-            $data['isReady'] = $isReady;
+        $data = ['roomId' => $info['roomId']];
+        if($isInRoom){
+            $hostPlayer = $info['hostPlayer'];
+            $guestPlayer = $info['guestPlayer'];
+            $data['isHost'] = $info['isHost'];
+            $data['isReady'] = $info['isReady'];
             $data['hostPlayer'] = $hostPlayer ? [
                 'id' => $hostPlayer->user->id,
                 'name' => $hostPlayer->user->nickname,
@@ -58,6 +61,17 @@ class MyRoomController extends MyActiveController{
                 'name' => $guestPlayer->user->nickname,
             ] : null;
         }
+//        $mode = Yii::$app->request->get('mode','all');  //all:返回全部房间数据  simple:只返回roomId
+//        if ($mode == 'all') {
+            /*$game = Game::find()->where(['room_id' => $room->id])->one();
+            if ($game) {
+                //如果游戏已经开始 isGameStart => true
+                $data['gameStart'] = true;
+            }*/
+            MyRoomCache::set();
+
+
+//        }
 
         return $data;
 
@@ -109,10 +123,10 @@ class MyRoomController extends MyActiveController{
             //清空房主的房间信息缓存
             $cacheKey = 'room_info_no_update_'.$hostPlayer->user->id;
             $cache->delete($cacheKey);
+            MyRoomCache::clear();
         }
 
-        $roomListSysCacheKey  = 'room_list_lastupdated';
-        $cache->set($roomListSysCacheKey, date('Y-m-d H:i:s'));
+        RoomListCache::updateSysKey();
     }
 
     public function actionExit(){
