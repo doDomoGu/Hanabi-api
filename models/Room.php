@@ -164,6 +164,9 @@ class Room extends ActiveRecord
 
     public static function getInfo($roomId) {
         $room = Room::check($roomId);
+
+        return $room;
+
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
         return [$room, [$hostPlayer, $guestPlayer]];

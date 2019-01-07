@@ -9,17 +9,17 @@ class MyRoomCache extends Component {
 
     public static function isNoUpdate() {
         $cache = Yii::$app->cache;
-        return $cache->get(self::ROOM_INFO_NO_UPDATED_KEY_PREFIX.Yii::$app->user->id);
+        return $cache->get(self::ROOM_INFO_NO_UPDATED_FLAG_KEY_PREFIX.Yii::$app->user->id);
     }
 
     public static function set(){
         $cache = Yii::$app->cache;
-        return $cache->set(self::ROOM_INFO_NO_UPDATED_KEY_PREFIX.Yii::$app->user->id, true);
+        return $cache->set(self::ROOM_INFO_NO_UPDATED_FLAG_KEY_PREFIX.Yii::$app->user->id, true);
     }
 
     public static function clear(){
         $cache = Yii::$app->cache;
-        return $cache->delete(self::ROOM_INFO_NO_UPDATED_KEY_PREFIX.Yii::$app->user->id);
+        return $cache->delete(self::ROOM_INFO_NO_UPDATED_FLAG_KEY_PREFIX.Yii::$app->user->id);
         //TODO 房间内的另一个玩家
         //return $cache->delete(self::ROOM_INFO_NO_UPDATED_KEY_PREFIX.Yii::$app->user->id);
     }
