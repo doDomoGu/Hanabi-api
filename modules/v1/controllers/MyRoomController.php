@@ -43,24 +43,8 @@ class MyRoomController extends MyActiveController{
             }
         }
 
-        list($isInRoom, $info) = MyRoom::getInfo();
-//        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = MyRoom::getInfo();
+        $info = MyRoom::getInfo();
 
-        $data = ['roomId' => $info['roomId']];
-        if($isInRoom){
-            $hostPlayer = $info['hostPlayer'];
-            $guestPlayer = $info['guestPlayer'];
-            $data['isHost'] = $info['isHost'];
-            $data['isReady'] = $info['isReady'];
-            $data['hostPlayer'] = $hostPlayer ? [
-                'id' => $hostPlayer->user->id,
-                'name' => $hostPlayer->user->nickname,
-            ] : null;
-            $data['guestPlayer'] = $guestPlayer ? [
-                'id' => $guestPlayer->user->id,
-                'name' => $guestPlayer->user->nickname,
-            ] : null;
-        }
 //        $mode = Yii::$app->request->get('mode','all');  //all:返回全部房间数据  simple:只返回roomId
 //        if ($mode == 'all') {
             /*$game = Game::find()->where(['room_id' => $room->id])->one();
@@ -68,12 +52,12 @@ class MyRoomController extends MyActiveController{
                 //如果游戏已经开始 isGameStart => true
                 $data['gameStart'] = true;
             }*/
-            MyRoomCache::set();
+        MyRoomCache::set();
 
 
 //        }
 
-        return $data;
+        return $info;
 
     }
 
@@ -89,12 +73,12 @@ class MyRoomController extends MyActiveController{
      *
      */
     public function actionEnter(){
-        list($isInRoom) = Room::isInRoom();
+        list($isInRoom) = MyRoom::isIn();
         if($isInRoom){
             throw new \Exception(Room::EXCEPTION_ENTER_HAS_IN_ROOM_MSG,Room::EXCEPTION_ENTER_HAS_IN_ROOM_CODE);
         }
         $roomId = (int) Yii::$app->request->post('roomId');
-        list($room, list($hostPlayer, $guestPlayer)) = Room::getInfo($roomId, false);
+        list($room, list($hostPlayer, $guestPlayer)) = MyRoom::getInfo();
         if ($room->password != '') {
             //TODO 房间密码处理
             throw new \Exception('房间有密码',12345);
