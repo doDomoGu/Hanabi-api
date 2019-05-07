@@ -100,46 +100,27 @@ class Room extends ActiveRecord
         ];
     }
 
-    // 房间中的主机玩家
+    // 连表查询，房间中的主机玩家
     public function getHostPlayer()
     {
         return $this->hasOne(RoomPlayer::className(), ['room_id' => 'id'])->where(['is_host' => 1]);
     }
 
-    // 房间中的客机玩家
+    // 连表查询，房间中的客机玩家
     public function getGuestPlayer()
     {
         return $this->hasOne(RoomPlayer::className(), ['room_id' => 'id'])->where(['is_host' => 0]);
     }
 
-//    # 检查当前玩家是否在房间中
-//    # 在房间内，检查房间内部数据是否正常，返回[true,roomId]
-//    # 不在房间内，返回[false,null]
-//    public static function isInRoom(){
-//        $roomCount = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->count(); //房间数
-//        # error：一个玩家不应该在多个房间
-//        if($roomCount > 1){
-//            throw new \Exception(Room::EXCEPTION_IN_MANY_ROOM_MSG,Room::EXCEPTION_IN_MANY_ROOM_CODE);
-//        }
-//        # 不在房间内，返回[false,null]
-//        if ($roomCount !== 1){
-//            return [false, null];
-//        }
-//        #由roomPlayer得知，玩家在房间内，开始检查房间数据
-//        $roomId = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->one()->room_id; //房间ID
-//        Room::check($roomId, true);
-//        return [true, $roomId];
-//    }
-
     # 检查房间状态
     # 参数：$roomId
-    public static function check($roomId){
-        $room = Room::find()->where(['id'=>$roomId])->one(); //房间对象
+    # 无返回值
+    public static function check($room){
         # error: 房间不存在
         if(!$room){
             throw new \Exception(Room::EXCEPTION_NOT_FOUND_MSG,Room::EXCEPTION_NOT_FOUND_CODE);
         }
-        $roomPlayersCount = (int) RoomPlayer::find()->where(['room_id'=>$roomId])->count(); //房间玩家人数
+        $roomPlayersCount = (int) RoomPlayer::find()->where(['room_id'=>$room->id])->count(); //房间玩家人数
         # error: 房间玩家人数异常
         if( $roomPlayersCount > 2 || $roomPlayersCount < 1 ){
             throw new \Exception(Room::EXCEPTION_PLAYER_NUMBER_WRONG_MSG,Room::EXCEPTION_PLAYER_NUMBER_WRONG_CODE);
@@ -158,17 +139,34 @@ class Room extends ActiveRecord
         if($guestPlayer && !$guestPlayer->user){
             throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
         }
+    }
+
+    # 获取room对象
+    public static function getOne($roomId) {
+        $room = Room::find()->where(['id'=>$roomId])->one();
+//        Room::check($room);
         return $room;
     }
 
+    # 获得room详细信息
+    /*public static function getInfo($roomId) {
+        $roomInfo = [];
 
-    public static function getInfo($roomId) {
-        $room = Room::check($roomId);
-
-        return $room;
-
+        $room = Room::getOne($roomId);
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
-        return [$room, [$hostPlayer, $guestPlayer]];
-    }
+
+        $roomInfo['hostPlayer'] = $hostPlayer ? [
+            'id' => $hostPlayer->user->id,
+            'name' => $hostPlayer->user->nickname,
+        ] : null;
+        $roomInfo['guestPlayer'] = $guestPlayer ? [
+            'id' => $guestPlayer->user->id,
+            'name' => $guestPlayer->user->nickname,
+        ] : null;
+        $roomInfo['isHost'] = $hostPlayer && $hostPlayer->user->id == Yii::$app->user->id;
+        $roomInfo['isReady'] = $guestPlayer && $guestPlayer->is_ready > 0;
+
+        return $roomInfo;
+    }*/
 }

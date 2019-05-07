@@ -27,7 +27,8 @@ class MyRoom {
         # 获得所在房间ID
         $roomId = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->one()->room_id; //房间ID
         # 检查房间数据
-        Room::check($roomId);
+        $room = Room::getOne($roomId);
+        Room::check($room);
         # 返回 [true, 房间Id]
         return [true, $roomId];
     }

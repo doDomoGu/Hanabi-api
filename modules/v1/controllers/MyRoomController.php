@@ -73,16 +73,25 @@ class MyRoomController extends MyActiveController{
      *
      */
     public function actionEnter(){
+        # 检查是否不在房间内
         list($isInRoom) = MyRoom::isIn();
+
         if($isInRoom){
             throw new \Exception(Room::EXCEPTION_ENTER_HAS_IN_ROOM_MSG,Room::EXCEPTION_ENTER_HAS_IN_ROOM_CODE);
         }
+
         $roomId = (int) Yii::$app->request->post('roomId');
-        list($room, list($hostPlayer, $guestPlayer)) = MyRoom::getInfo();
+
+        $room = Room::getOne($roomId);
+
         if ($room->password != '') {
             //TODO 房间密码处理
             throw new \Exception('房间有密码',12345);
         }
+
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+
         if($hostPlayer && $guestPlayer) {
             throw new \Exception(Room::EXCEPTION_ENTER_PLAYER_FULL_MSG,Room::EXCEPTION_ENTER_PLAYER_FULL_CODE);
         }
@@ -114,7 +123,8 @@ class MyRoomController extends MyActiveController{
     }
 
     public function actionExit(){
-        list($isInRoom, $roomId) = Room::isInRoom();
+        # 检查是否在 房间内
+        list($isInRoom, $roomId) = MyRoom::isIn();
         if(!$isInRoom){
             throw new \Exception(Room::EXCEPTION_EXIT_NOT_IN_ROOM_MSG,Room::EXCEPTION_EXIT_NOT_IN_ROOM_CODE);
         }
