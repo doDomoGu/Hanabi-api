@@ -38,24 +38,14 @@ class MyRoomController extends MyActiveController{
     public function actionInfo(){
         $force = !!Yii::$app->request->get('force',false); //是否强制读取数据库，即跳过cache
         if(!$force) {
-            if(MyRoomCache::isNoUpdate()){
+            if(MyRoomCache::isNoUpdate(Yii::$app->user->id)){
                 return ['noUpdate'=>true];
             }
         }
 
         $info = MyRoom::getInfo();
 
-//        $mode = Yii::$app->request->get('mode','all');  //all:返回全部房间数据  simple:只返回roomId
-//        if ($mode == 'all') {
-            /*$game = Game::find()->where(['room_id' => $room->id])->one();
-            if ($game) {
-                //如果游戏已经开始 isGameStart => true
-                $data['gameStart'] = true;
-            }*/
-        MyRoomCache::set();
-
-
-//        }
+        MyRoomCache::set(Yii::$app->user->id);
 
         return $info;
 
@@ -75,13 +65,11 @@ class MyRoomController extends MyActiveController{
     public function actionEnter(){
         # 检查是否不在房间内
         list($isInRoom) = MyRoom::isIn();
-
         if($isInRoom){
             throw new \Exception(Room::EXCEPTION_ENTER_HAS_IN_ROOM_MSG,Room::EXCEPTION_ENTER_HAS_IN_ROOM_CODE);
         }
 
         $roomId = (int) Yii::$app->request->post('roomId');
-
         $room = Room::getOne($roomId);
 
         if ($room->password != '') {
@@ -92,12 +80,13 @@ class MyRoomController extends MyActiveController{
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
 
+        # 房间已满
         if($hostPlayer && $guestPlayer) {
             throw new \Exception(Room::EXCEPTION_ENTER_PLAYER_FULL_MSG,Room::EXCEPTION_ENTER_PLAYER_FULL_CODE);
         }
-        $cache = Yii::$app->cache;
+
         if (!$hostPlayer) {
-            #成为主机玩家
+            # 成为主机玩家
             $newRoomPlayer = new RoomPlayer();
             $newRoomPlayer->room_id = $roomId;
             $newRoomPlayer->user_id = Yii::$app->user->id;
@@ -105,7 +94,7 @@ class MyRoomController extends MyActiveController{
             $newRoomPlayer->is_ready = 0;
             $newRoomPlayer->save();
         }else {
-            #成为客机玩家
+            # 成为客机玩家
             $newRoomPlayer = new RoomPlayer();
             $newRoomPlayer->room_id = $roomId;
             $newRoomPlayer->user_id = Yii::$app->user->id;
@@ -113,10 +102,8 @@ class MyRoomController extends MyActiveController{
             $newRoomPlayer->is_ready = 0;
             $newRoomPlayer->save();
 
-            //清空房主的房间信息缓存
-            $cacheKey = 'room_info_no_update_'.$hostPlayer->user->id;
-            $cache->delete($cacheKey);
-            MyRoomCache::clear();
+            # 清空房主的房间信息缓存
+            MyRoomCache::clear($hostPlayer->user->id);
         }
 
         RoomListCache::updateSysKey();
@@ -128,34 +115,40 @@ class MyRoomController extends MyActiveController{
         if(!$isInRoom){
             throw new \Exception(Room::EXCEPTION_EXIT_NOT_IN_ROOM_MSG,Room::EXCEPTION_EXIT_NOT_IN_ROOM_CODE);
         }
-        list($room, list($hostPlayer, $guestPlayer, $isHost)) = Room::getInfo($roomId, true);
-        if( RoomPlayer::deleteAll(['user_id'=>Yii::$app->user->id]) === 0 ){
+        # 获取room对象
+        $room =  Room::getOne($roomId);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+
+        # 删除房内玩家记录
+        $rowCount = RoomPlayer::deleteAll(['user_id'=>Yii::$app->user->id]);
+
+        # 删除数等于0 ， 删除失败
+        if( $rowCount === 0 ){
             throw new \Exception(Room::EXCEPTION_EXIT_DELETE_FAILURE_MSG,Room::EXCEPTION_EXIT_DELETE_FAILURE_CODE);
         }
-        $cache = Yii::$app->cache;
-        $cacheKey = 'room_info_no_update_'.Yii::$app->user->id;
-        $cache->delete($cacheKey);
+
+        # 清空对应玩家的房间信息缓存
+        MyRoomCache::clear(Yii::$app->user->id);
+
         #原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
-        if($isHost){
+        if($hostPlayer && $hostPlayer->user->id == Yii::$app->user->id){
             if($guestPlayer){
                 $guestPlayer->is_host = 1;
                 $guestPlayer->is_ready = 0;
                 $guestPlayer->save();
 
                 //清空房主(此时的房主是原先的访客)的房间信息缓存
-                $cacheKey = 'room_info_no_update_'.$guestPlayer->user_id;
-                $cache->delete($cacheKey);
+                MyRoomCache::clear($guestPlayer->user_id);
             }
         }else{
             if($hostPlayer){
                 //清空房主的房间信息缓存
-                $cacheKey = 'room_info_no_update_'.$hostPlayer->user_id;
-                $cache->delete($cacheKey);
+                MyRoomCache::clear($hostPlayer->user_id);
             }
         }
 
-        $roomListSysCacheKey  = 'room_list_lastupdated';
-        $cache->set($roomListSysCacheKey, date('Y-m-d H:i:s'));
+        RoomListCache::updateSysKey();
     }
 
     public function actionDoReady(){

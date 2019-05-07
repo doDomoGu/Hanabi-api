@@ -43,7 +43,7 @@ class MyRoom {
         # $isInRoom = false, 不在房间里 只返回 roomId = -1
         # $isInRoom = true, 在房间中，根据ID获取详细的房间信息
         if($isInRoom){
-            $room = Room::getInfo($roomInfo['roomId']);
+            $room = Room::getOne($roomInfo['roomId']);
             $hostPlayer = $room->hostPlayer;
             $guestPlayer = $room->guestPlayer;
             $roomInfo['hostPlayer'] = $hostPlayer ? [
