@@ -132,7 +132,7 @@ class MyRoomController extends MyActiveController{
         MyRoomCache::clear(Yii::$app->user->id);
 
         #原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
-        if($hostPlayer && $hostPlayer->user->id == Yii::$app->user->id){
+        if($hostPlayer && $hostPlayer->user_id == Yii::$app->user->id){
             if($guestPlayer){
                 $guestPlayer->is_host = 1;
                 $guestPlayer->is_ready = 0;
