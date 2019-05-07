@@ -132,19 +132,19 @@ class MyRoomController extends MyActiveController{
         MyRoomCache::clear(Yii::$app->user->id);
 
         #原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
-        if($hostPlayer && $hostPlayer->user_id == Yii::$app->user->id){
+        if($hostPlayer && $hostPlayer->user->id == Yii::$app->user->id){
             if($guestPlayer){
                 $guestPlayer->is_host = 1;
                 $guestPlayer->is_ready = 0;
                 $guestPlayer->save();
 
                 //清空房主(此时的房主是原先的访客)的房间信息缓存
-                MyRoomCache::clear($guestPlayer->user_id);
+                MyRoomCache::clear($guestPlayer->user->id);
             }
         }else{
             if($hostPlayer){
                 //清空房主的房间信息缓存
-                MyRoomCache::clear($hostPlayer->user_id);
+                MyRoomCache::clear($hostPlayer->user->id);
             }
         }
 
@@ -152,12 +152,19 @@ class MyRoomController extends MyActiveController{
     }
 
     public function actionDoReady(){
-        list($isInRoom, $roomId) = Room::isInRoom();
+        # 检查是否在 房间内
+        list($isInRoom, $roomId) = MyRoom::isIn();
         if(!$isInRoom){
             throw new \Exception(Room::EXCEPTION_DO_READY_NOT_IN_ROOM_MSG,Room::EXCEPTION_DO_READY_NOT_IN_ROOM_CODE);
         }
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
-        if(!$guestPlayer || !$guestPlayer->user || $guestPlayer->user->id != Yii::$app->user->id || $isHost !== false){
+
+        # 获取room对象
+        $room =  Room::getOne($roomId);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+
+        # 判断你是否是客机玩家
+        if(!$guestPlayer || !$guestPlayer->user || $guestPlayer->user->id != Yii::$app->user->id ){
             throw new \Exception(Room::EXCEPTION_DO_READY_NOT_GUEST_PLAYER_MSG,Room::EXCEPTION_DO_READY_NOT_GUEST_PLAYER_CODE);
         }
 
@@ -166,14 +173,11 @@ class MyRoomController extends MyActiveController{
          * list($isInGame) = Game::isInGame();
         $game = Game::find()->where(['room_id'=>$room->id,'status'=>Game::STATUS_PLAYING])->one();*/
 
-        $guestPlayer->is_ready = $isReady ? 0 : 1;
+        $guestPlayer->is_ready = $guestPlayer->is_ready ? 0 : 1;
         if($guestPlayer->save()){
-            $cache = Yii::$app->cache;
             //清空房间内玩家的信息缓存
-            $cacheKey = 'room_info_no_update_'.$hostPlayer->user->id;
-            $cache->delete($cacheKey);
-            $cacheKey = 'room_info_no_update_'.$guestPlayer->user->id;
-            $cache->delete($cacheKey);
+            MyRoomCache::clear($hostPlayer->user->id);
+            MyRoomCache::clear($guestPlayer->user->id);
         }else{
             throw new \Exception(Room::EXCEPTION_DO_READY_FAILURE_MSG,Room::EXCEPTION_DO_READY_FAILURE_CODE);
         }
