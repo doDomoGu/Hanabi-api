@@ -43,19 +43,23 @@ class MyGameController extends MyActiveController
         if($isPlaying) {
             throw new \Exception(Game::EXCEPTION_START_GAME_HAS_STARTED_MSG,Game::EXCEPTION_START_GAME_HAS_STARTED_CODE);
         }
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+        $room =  Room::getOne($roomId);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+
         # error：主机/客机玩家不全都存在
         if(!$hostPlayer || !$guestPlayer) {
             throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_PLAYERS_MSG,Game::EXCEPTION_START_GAME_WRONG_PLAYERS_CODE);
         }
         # error：操作人不是主机玩家
-        if(!$isHost) {
+        if($hostPlayer->user->id != Yii::$app->user->id) {
             throw new \Exception(Game::EXCEPTION_START_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_START_GAME_NOT_HOST_PLAYER_CODE);
         }
         # error：客机玩家没有准备
-        if(!$isReady) {
+        if($guestPlayer->is_ready != 1) {
             throw new \Exception(Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE);
         }
+
         Game::createOne($roomId);
     }
 

@@ -3,6 +3,8 @@
 namespace app\models;
 
 
+use app\components\cache\MyRoomCache;
+use app\components\cache\RoomListCache;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
@@ -133,7 +135,7 @@ class Game extends ActiveRecord
     }
 
     public static function isPlaying(){
-        list($isInRoom, $roomId) = Room::isInRoom();
+        list($isInRoom, $roomId) = MyRoom::isIn();
         #不在房间中 抛出异常
         if(!$isInRoom) {
             throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
@@ -151,7 +153,12 @@ class Game extends ActiveRecord
         }
         #在游戏中
         #以下是检查游戏状态
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+        //list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+        $room =  Room::getOne($roomId);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+        $isReady = $guestPlayer->is_ready == 1;
+
         if(!$hostPlayer || !$guestPlayer) {
             throw new \Exception(Game::EXCEPTION_WRONG_PLAYERS_MSG,Game::EXCEPTION_WRONG_PLAYERS_CODE);
         }
@@ -202,7 +209,9 @@ class Game extends ActiveRecord
     }
 
     public static function createOne($roomId){
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+        $room =  Room::getOne($roomId);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
         if(!$room){
             throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_ROOM_MSG,Game::EXCEPTION_START_GAME_WRONG_ROOM_CODE);
         }
@@ -243,9 +252,8 @@ class Game extends ActiveRecord
             throw new \Exception(Game::EXCEPTION_CREATE_GAME_FAILURE_MSG,Game::EXCEPTION_CREATE_GAME_FAILURE_CODE);
         }
 
-        $cache = Yii::$app->cache;
-        $cache->delete('room_info_no_update_'.$hostPlayer->user_id);
-        $cache->delete('room_info_no_update_'.$guestPlayer->user_id);
+        MyRoomCache::clear($hostPlayer->user_id);
+        MyRoomCache::clear($guestPlayer->user_id);
     }
 
     public static function deleteOne($roomId){
