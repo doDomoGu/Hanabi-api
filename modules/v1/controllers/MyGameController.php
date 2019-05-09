@@ -2,11 +2,13 @@
 
 namespace app\modules\v1\controllers;
 
+use app\components\cache\MyGameCache;
 use app\models\GameCard;
 use app\models\History;
 use app\models\HistoryLog;
 use app\models\HistoryPlayer;
 use app\models\MyGame;
+use app\models\MyRoom;
 use app\models\Room;
 use app\models\RoomPlayer;
 use Yii;
@@ -38,9 +40,13 @@ class MyGameController extends MyActiveController
      */
 
     public function actionStart(){
-        list($isPlaying, $roomId) = Game::isPlaying();
+        list($isInRoom, $roomId) = MyRoom::isIn();
+        #不在房间中 抛出异常
+        if(!$isInRoom) {
+            throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
+        }
         # error：游戏已经开始
-        if($isPlaying) {
+        if(Game::isPlaying($roomId)) {
             throw new \Exception(Game::EXCEPTION_START_GAME_HAS_STARTED_MSG,Game::EXCEPTION_START_GAME_HAS_STARTED_CODE);
         }
         $room =  Room::getOne($roomId);
@@ -74,15 +80,22 @@ class MyGameController extends MyActiveController
      */
 
     public function actionEnd(){
-        list($isPlaying, $roomId) = Game::isPLaying();
-        if(!$isPlaying) {
+        list($isInRoom, $roomId) = MyRoom::isIn();
+        #不在房间中 抛出异常
+        if(!$isInRoom) {
+            throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
+        }
+        # 不在游戏中
+        if(!Game::isPlaying($roomId)) {
             throw new \Exception(Game::EXCEPTION_END_GAME_HAS_NO_GAME_MSG,Game::EXCEPTION_END_GAME_HAS_NO_GAME_CODE);
         }
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
 
-        if(!$isHost){
+        $room = Room::getOne($roomId);
+        //暂时主机玩家可以强制结束游戏
+        if($room->hostPlayer->user_id != Yii::$app->user->id){
             throw new \Exception(Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE);
         }
+
         Game::deleteOne($roomId);
     }
 
@@ -102,15 +115,19 @@ class MyGameController extends MyActiveController
     public function actionInfo(){
         $mode = Yii::$app->request->get('mode','all');
         $force = !!Yii::$app->request->get('force',false);
-        $cache = Yii::$app->cache;
-        $cacheKey  = 'game_info_no_update_'.Yii::$app->user->id;  //存在则不更新游戏信息
         if(!$force) {
-            if($cache->get($cacheKey)) {
+            if(MyGameCache::isNoUpdate(Yii::$app->user->id)) {//存在则不更新游戏信息
                 return ['noUpdate'=>true];
             }
         }
         #判断是否在游戏中， 获得房间ID
-        list($isPlaying, $roomId) = Game::isPlaying();
+        list($isInRoom, $roomId) = MyRoom::isIn();
+        #不在房间中 抛出异常
+        if(!$isInRoom) {
+            throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
+        }
+        $isPlaying = Game::isPlaying($roomId);
+
         $data = [];
         $data['isPlaying'] = $isPlaying;
         $data['roomId'] = $roomId;
@@ -126,7 +143,7 @@ class MyGameController extends MyActiveController
             $data['card'] = Game::getCardInfo($game->room_id);
             list(, , $data['log']) = HistoryLog::getList($game->room_id);
             $data['game']['lastUpdated'] = HistoryLog::getLastUpdate($game->room_id);
-            $cache->set($cacheKey, true);
+            MyGameCache::set(Yii::$app->user->id);
         }
         return $data;
     }
