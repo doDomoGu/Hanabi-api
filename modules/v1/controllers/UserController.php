@@ -341,6 +341,11 @@ class UserController extends MyActiveController
 
         $history_log = [];
 
+        $colors_en = ['white', 'blue', 'yellow', 'red', 'green'];
+
+        $colors_cn = ['白', '蓝', '黄', '红', '绿'];
+
+        $numbers = [1, 1, 1, 2, 2, 3, 3, 4, 4, 5];
 
 
         $user_id = Yii::$app->user->id;
@@ -424,17 +429,15 @@ class UserController extends MyActiveController
                             if($is_ready){
 
                                 if($game->status == Game::STATUS_PLAYING){
-                                    $colors_en = ['white', 'blue', 'yellow', 'red', 'green'];
-                                    $colors_cn = ['白', '蓝', '黄', '红', '绿'];
-                                    $numbers = [1, 1, 1, 2, 2, 3, 3, 4, 4, 5];
+
 
                                     //主机手牌 序号 0~4
-                                    $type_orders_is_host = [0,1,2,3,4];
+//                                    $type_orders_is_host = [0,1,2,3,4];
                                     //客机手牌 序号5~9
-                                    $type_orders_not_host = [5,6,7,8,9];
+//                                    $type_orders_not_host = [5,6,7,8,9];
 
-                                    $hostCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_HAND, 'type_ord' => $type_orders_is_host])->orderBy('type_ord asc')->all();
-                                    $guestCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_HAND, 'type_ord' => $type_orders_not_host])->orderBy('type_ord asc')->all();
+                                    $hostCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_HOST_HANDS])->orderBy('type_ord asc')->all();
+                                    $guestCards = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_GUEST_HANDS])->orderBy('type_ord asc')->all();
 
                                     foreach($hostCards as $card){
                                         $host_hands[] = [
@@ -573,7 +576,7 @@ class UserController extends MyActiveController
 
             if($game){
                 echo '回合数：'.$game->round_num. "\n";
-
+                echo '当前回合玩家：'. ($game->round_player_is_host?'主机':'客机') . "\n";
                 echo '剩余提示数：'.$game->cue_num.' / 8'. "\n";
                 echo '剩余机会数：'.$game->chance_num.' / 3'. "\n";
                 echo '分数：'.$game->score.' / 25'. "\n";
