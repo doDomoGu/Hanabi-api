@@ -135,6 +135,12 @@ class Game extends ActiveRecord
         ];
     }
 
+    public static function getOne($roomId) {
+        $game = self::find()->where(['room_id'=>$roomId])->one();
+        //self::check($game);
+        return $game;
+    }
+
     // 通过roomId 判断是否在游戏中状态
     public static function isPlaying($roomId){
         $game = Game::find()->where(['room_id'=>$roomId])->one();
@@ -508,9 +514,13 @@ class Game extends ActiveRecord
 
 
     public static function discardCard($roomId, $typeOrd){
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
-        $game = Game::find()->where(['room_id'=>$roomId])->one();
-        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
+        $room = Room::getOne($roomId);
+        $isHost = $room->hostPlayer->user_id == Yii::$app->user->id;  //操作玩家是否是主机玩家
+
+        $game = Game::getOne($roomId);
+        $roundPlayerIsHost = $game->round_player_is_host == 1; // 当前回合玩家是不是主机玩家
+
+        if($roundPlayerIsHost != $isHost){ // 判断是不是当前玩家操作的回合
             throw new \Exception(Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE);
         }
 

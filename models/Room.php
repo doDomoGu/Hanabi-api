@@ -143,7 +143,7 @@ class Room extends ActiveRecord
 
     # 获取room对象
     public static function getOne($roomId) {
-        $room = Room::find()->where(['id'=>$roomId])->one();
+        $room = self::find()->where(['id'=>$roomId])->one();
 //        Room::check($room);
         return $room;
     }
