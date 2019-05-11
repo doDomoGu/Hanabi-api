@@ -634,6 +634,19 @@ class UserController extends MyActiveController
 
                 echo "\t".'====成功卡牌 ('.count($table_cards).')===='."\n";
 
+                $tmp_i = 0;
+                foreach($table_cards as $c){
+
+                    if($tmp_i==5){
+                        echo "\n";
+                        $tmp_i = 0;
+                    }
+                    echo "\t".$c['color_show'].'-'.$c['num_show'].' ('.$c['ord'].')';
+
+                    $tmp_i++;
+                }
+                echo "\n";
+                echo "\n";
 
                 $table_cards_arr = [
                     0 =>[],
