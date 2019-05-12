@@ -262,11 +262,22 @@ class GameCard extends ActiveRecord
         return $cardInfo;
     }*/
 
-    //获取当前应插入弃牌堆的ord数值，即当前弃牌堆最小排序的数值加1，没有则为0
+    //获取当前应插入弃牌堆的ord数值，即当前弃牌堆最大排序的数值加1，没有则为0
     public static function getInsertDiscardOrd($room_id){
         $lastDiscardCard = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_DISCARDED])->orderBy('type_ord desc')->one();
         if($lastDiscardCard){
             $ord = $lastDiscardCard->type_ord + 1;
+        }else{
+            $ord = 0;
+        }
+        return $ord;
+    }
+
+    //获取当前应插入成功的type_ord数值，即当前成功打出（type = TYPE_SUCCEEDED :4)最大排序的数值加1，没有则为0
+    public static function getInsertSucceededOrd($room_id){
+        $lastSucceededCard = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_SUCCEEDED])->orderBy('type_ord desc')->one();
+        if($lastSucceededCard){
+            $ord = $lastSucceededCard->type_ord + 1;
         }else{
             $ord = 0;
         }

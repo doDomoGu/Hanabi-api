@@ -76,6 +76,8 @@ class Game extends ActiveRecord
     const EXCEPTION_PLAY_NOT_IN_GAME_MSG   = '出牌操作，不在游戏中';
     const EXCEPTION_CUE_NOT_IN_GAME_CODE  = 20021;
     const EXCEPTION_CUE_NOT_IN_GAME_MSG   = '提示操作，不在游戏中';
+    const EXCEPTION_CUE_NOT_PLAYER_ROUND_CODE  = 20022;
+    const EXCEPTION_CUE_NOT_PLAYER_ROUND_MSG   = '提示操作，不是该玩家的回合';
 
 
     /**
@@ -403,30 +405,29 @@ class Game extends ActiveRecord
      */
 
     public static function playCard($roomId, $typeOrd){
-        $myGame = MyGame::getInfo();
+        $game = Game::getOne($roomId);
+        $room = Room::getOne($roomId);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+        $isHost = $hostPlayer->user_id == Yii::$app->user->id;
 
-        if($game->round_player_is_host != $isHost){
-            #不是当前玩家操作的回合
-            throw new \Exception(Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE);
-        }
-
-
-
-        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
-        $game = Game::find()->where(['room_id'=>$roomId])->one();
+        # 游戏不存在
         if(!$game){
             throw new \Exception(GameCard::EXCEPTION_NOT_IN_GAME_MSG,GameCard::EXCEPTION_NOT_IN_GAME_CODE);
         }
-        if($game->round_player_is_host != $isHost){ #不是当前玩家操作的回合
+        # 不是当前玩家操作的回合
+        if($game->round_player_is_host != $isHost){
             throw new \Exception(Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE);
+        }
+
+
+        # 手牌排序参数错误
+        if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
+            throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
         }
 
         #根据isHost，选择GameCard的type
         $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
-
-        if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
-            throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
-        }
 
         #找到所选择的牌
         $cardSelected = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType,'type_ord'=>$typeOrd])->one();
@@ -441,7 +442,7 @@ class Game extends ActiveRecord
         if($colorTopNum + 1 == $num){
             #出牌成功
             $cardSelected->type = GameCard::TYPE_SUCCEEDED;
-            $cardSelected->type_ord = 0;
+            $cardSelected->type_ord = GameCard::getInsertSucceededOrd($roomId);
             $cardSelected->save();
             $playSuccess = true;
         }else{
@@ -459,6 +460,7 @@ class Game extends ActiveRecord
 
             //恢复一个提示数
             Game::recoverCue($roomId);
+            $result = true;
         }else{
             //消耗一次机会
             list($result, $chance_num) = Game::useChance($roomId);
@@ -503,8 +505,6 @@ class Game extends ActiveRecord
         MyGameCache::clear($hostPlayer->user_id);
         MyGameCache::clear($guestPlayer->user_id);
 
-
-//        return [$result,$cardOrd];
     }
 
     public static function checkIsPlayerRound(){
@@ -515,7 +515,9 @@ class Game extends ActiveRecord
 
     public static function discardCard($roomId, $typeOrd){
         $room = Room::getOne($roomId);
-        $isHost = $room->hostPlayer->user_id == Yii::$app->user->id;  //操作玩家是否是主机玩家
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+        $isHost = $hostPlayer->user_id == Yii::$app->user->id;  //操作玩家是否是主机玩家
 
         $game = Game::getOne($roomId);
         $roundPlayerIsHost = $game->round_player_is_host == 1; // 当前回合玩家是不是主机玩家
@@ -579,65 +581,57 @@ class Game extends ActiveRecord
     }
 
     public static function cueCard($roomId, $typeOrd, $cueType) {
-        $success = false;
-        $msg = '';
-        $data = [];
         $user_id = Yii::$app->user->id;
-        $room_player = RoomPlayer::find()->where(['user_id'=>$user_id])->one();
-        if($room_player){
-            $game = Game::find()->where(['room_id'=>$room_player->room_id,'status'=>Game::STATUS_PLAYING])->one();
-            if($game){
-                if($game->round_player_is_host==$room_player->is_host){
-                    $gameCardCount = GameCard::find()->where(['room_id'=>$game->room_id])->count();
-                    if($gameCardCount==Card::CARD_NUM_ALL){
-                        //提示一张牌
-                        list($success,$cards_ord, $msg) = GameCard::cue($roomId, $typeOrd, $cueType);
 
-                        if($success){
-                            //插入日志 record
-                            //TODO
-                            $history = History::find()->where(['room_id'=>$game->room_id,'status'=>History::STATUS_PLAYING])->one();
-                            if($history){
-                                list($get_content_success,$content_param,$content) = HistoryLog::getContentByCue($roomId, $typeOrd, $cueType,$cards_ord);
-                                if($get_content_success){
-                                    $historyLog = new HistoryLog();
-                                    $historyLog->history_id = $history->id;
-                                    $historyLog->type = HistoryLog::TYPE_CUE_CARD;
-                                    $historyLog->content_param = $content_param;
-                                    $historyLog->content = $content;
-                                    $historyLog->save();
-                                    //var_dump($historyLog->errors);exit;
-                                }
-                            }
+        $room = Room::getOne($roomId);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+        $isHost = $hostPlayer->user_id == Yii::$app->user->id;  //操作玩家是否是主机玩家
 
-                            //消耗一个提示数
-                            Game::useCue($game->room_id);
+        $game = Game::getOne($roomId);
+        $roundPlayerIsHost = $game->round_player_is_host == 1; // 当前回合玩家是不是主机玩家
 
-                            //交换(下一个)回合
-                            Game::changeRoundPlayer($game->room_id);
-
-                            MyGameCache::clear($user_id);
-
-                            $other_user = RoomPlayer::find()->where(['room_id'=>$game->room_id,'is_host'=>$room_player->is_host?0:1])->one();
-                            if($other_user){
-                                MyGameCache::clear($other_user->user_id);
-                            }
-
-                        }
-
-
-                    }else{
-                        $msg = '总卡牌数错误';
-                    }
-                }else{
-                    $msg = '当前不是你的回合';
-                }
-            }else{
-                $msg = '你所在房间游戏未开始/或者有多个游戏，错误';
-            }
-        }else{
-            $msg = '你不在房间中/不止在一个房间中，错误';
+        if($roundPlayerIsHost != $isHost){ // 判断是不是当前玩家操作的回合
+            throw new \Exception(Game::EXCEPTION_CUE_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_CUE_NOT_PLAYER_ROUND_CODE);
         }
+
+        //提示一张牌
+        list($success,$cards_ord, $msg) = GameCard::cue($roomId, $typeOrd, $cueType);
+
+        if($success){
+            //插入日志 record
+            //TODO
+            $history = History::find()->where(['room_id'=>$game->room_id,'status'=>History::STATUS_PLAYING])->one();
+            if($history){
+                list($get_content_success,$content_param,$content) = HistoryLog::getContentByCue($roomId, $typeOrd, $cueType,$cards_ord);
+                if($get_content_success){
+                    $historyLog = new HistoryLog();
+                    $historyLog->history_id = $history->id;
+                    $historyLog->type = HistoryLog::TYPE_CUE_CARD;
+                    $historyLog->content_param = $content_param;
+                    $historyLog->content = $content;
+                    $historyLog->save();
+                    //var_dump($historyLog->errors);exit;
+                }
+            }
+
+            //消耗一个提示数
+            Game::useCue($game->room_id);
+
+            //交换(下一个)回合
+            Game::changeRoundPlayer($game->room_id);
+
+            MyGameCache::clear($user_id);
+
+            $other_user = RoomPlayer::find()->where(['room_id'=>$game->room_id,'is_host'=>$room_player->is_host?0:1])->one();
+            if($other_user){
+                MyGameCache::clear($other_user->user_id);
+            }
+
+        }
+
+
+
     }
 
     public static function recoverCue($room_id){

@@ -216,10 +216,18 @@ class MyGameController extends MyActiveController
     public function actionDoCue(){
         $ord = Yii::$app->request->post('cardSelectOrd');
         $cueType = Yii::$app->request->post('cueType');
-        list($isPlaying, $roomId) = Game::isPlaying();
-        if(!$isPlaying) {
+
+        #判断是否在游戏中， 获得房间ID
+        list($isInRoom, $roomId) = MyRoom::isIn();
+        #不在房间中 抛出异常
+        if(!$isInRoom) {
+            throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
+        }
+
+        if(!Game::isPlaying($roomId)) {
             throw new \Exception(Game::EXCEPTION_CUE_NOT_IN_GAME_MSG,Game::EXCEPTION_CUE_NOT_IN_GAME_CODE);
         }
+
         Game::cueCard($roomId, $ord, $cueType);
     }
 
