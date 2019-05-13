@@ -174,7 +174,7 @@ class HistoryLog extends \yii\db\ActiveRecord
                 $player = User::find()->where(['id'=>Yii::$app->user->id])->one();
                 $cards_ord2 = [];
                 foreach($cards_ord as $c){
-                    $cards_ord2[] = $player_is_host?$c-5+1:$c+1;
+                    $cards_ord2[] = $c+1;
                 }
 
                 $cards_ord_str = implode(', ',$cards_ord2);

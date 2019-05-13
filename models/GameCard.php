@@ -166,55 +166,6 @@ class GameCard extends ActiveRecord
 
     }
 
-    public static function cue($room_id,$type_ord,$type){
-        $success = false;
-        $cards_ord = [];
-        $msg = '';
-        //统计牌的总数 应该为50张
-        $count = GameCard::find()->where(['room_id'=>$room_id])->count();
-        if($count==Card::CARD_NUM_ALL){
-
-            $game = Game::find()->where(['room_id'=>$room_id])->one();
-            if($game){
-                $hands_ord = $game->round_player_is_host?GameCard::$guest_hands_type_ord:GameCard::$host_hands_type_ord;
-
-                if(in_array($type_ord,$hands_ord)){
-                    //所选择的牌
-                    $cardSelected = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'type_ord'=>$type_ord])->one();
-                    if($cardSelected){
-
-                        if($type=='color'){
-                            $cardCueList = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND,'color'=>$cardSelected->color])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
-
-                        }elseif($type=='num'){
-                            $cardCueList = GameCard::find()->where(['room_id'=>$room_id,'type'=>GameCard::TYPE_IN_HAND])->andWhere(['in','num',Card::$numbers2[Card::$numbers[$cardSelected->num]]])->andWhere(['in','type_ord',$hands_ord])->orderby('type_ord asc')->all();
-                        }else{
-                            $msg = '提示类型不正确';
-                        }
-
-                        if(isset($cardCueList) && !empty($cardCueList)){
-                            foreach($cardCueList as $c){
-                                $cards_ord[] = $c->type_ord;
-                            }
-                            $success = true;
-                        }else{
-                            $msg = '提示列表为空';
-                        }
-
-                    }else{
-                        $msg='没有找到选择的牌';
-                    }
-                }else{
-                    $msg = '手牌选择错误';
-                }
-            }else{
-                $msg='游戏未开始';
-            }
-        }else{
-            $msg='game card num wrong';
-        }
-        return [$success,$cards_ord,$msg];
-    }
 
     //交换手牌顺序
     /*public static function changePlayerCardOrd($game_id,$player,$cardId1,$cardId2){
