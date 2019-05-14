@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\components\exception\RoomException;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
@@ -20,8 +21,8 @@ class Room extends ActiveRecord
     const STATUS_PREPARING = 1;  //准备中，未开始
     const STATUS_PLAYING = 2;    //游玩中，已开始*/
 
-    const EXCEPTION_NOT_FOUND_CODE  = 10001;
-    const EXCEPTION_NOT_FOUND_MSG   = '房间不存在';
+//    const EXCEPTION_NOT_FOUND_CODE  = 10001;
+//    const EXCEPTION_NOT_FOUND_MSG   = '房间不存在';
     const EXCEPTION_PLAYER_OVER_LIMIT_CODE  = 10002;
     const EXCEPTION_PLAYER_OVER_LIMIT_MSG   = '房间人数超过限制（大于2人）';
     const EXCEPTION_IN_MANY_ROOM_CODE  = 10003;
@@ -44,8 +45,8 @@ class Room extends ActiveRecord
     const EXCEPTION_DO_READY_FAILURE_MSG  = '准备操作，失败';
     const EXCEPTION_PLAYER_NOT_FOUND_CODE = 10012;
     const EXCEPTION_PLAYER_NOT_FOUND_MSG  = '对应的玩家找不到';
-    const EXCEPTION_PLAYER_NUMBER_WRONG_MSG   = '房间人数错误';
-    const EXCEPTION_PLAYER_NUMBER_WRONG_CODE  = 10013;
+//    const EXCEPTION_PLAYER_NUMBER_WRONG_MSG   = '房间人数错误';
+//    const EXCEPTION_PLAYER_NUMBER_WRONG_CODE  = 10013;
 
 
 
@@ -54,7 +55,7 @@ class Room extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'room';
+        return '{{%room}}';
     }
 
     /**
@@ -118,24 +119,28 @@ class Room extends ActiveRecord
     public static function check($room){
         # error: 房间不存在
         if(!$room){
-            throw new \Exception(Room::EXCEPTION_NOT_FOUND_MSG,Room::EXCEPTION_NOT_FOUND_CODE);
+            RoomException::t('not_found');
         }
-        $roomPlayersCount = (int) RoomPlayer::find()->where(['room_id'=>$room->id])->count(); //房间玩家人数
-        # error: 房间玩家人数异常
-        if( $roomPlayersCount > 2 || $roomPlayersCount < 1 ){
-            throw new \Exception(Room::EXCEPTION_PLAYER_NUMBER_WRONG_MSG,Room::EXCEPTION_PLAYER_NUMBER_WRONG_CODE);
+        $roomPlayerNumber = (int) RoomPlayer::find()->where(['room_id'=>$room->id])->count(); //房间玩家人数
+        # error: 房间玩家人数错误
+        if( !in_array($roomPlayerNumber,[0, 1, 2])){
+            RoomException::t('wrong_player_number');
         }
+
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
+        
         # error: 没有主机玩家
-        if($roomPlayersCount > 0 && !$hostPlayer) {
+        if($roomPlayerNumber > 0 && !$hostPlayer) {
             throw new \Exception(Room::EXCEPTION_NO_HOST_PLAYER_MSG, Room::EXCEPTION_NO_HOST_PLAYER_CODE);
         }
-        # error: 找不到对应的（主机）玩家信息
+
+        # error: 有主机玩家 但是找不到对应的玩家信息
         if($hostPlayer && !$hostPlayer->user){
             throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
         }
-        # error: 找不到对应的（客机）玩家信息
+
+        # error: 有客机玩家 但是找不到对应的玩家信息
         if($guestPlayer && !$guestPlayer->user){
             throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
         }

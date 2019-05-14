@@ -22,7 +22,7 @@ class RoomPlayer extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'room_player';
+        return '{{%room_player}}';
     }
 
     /**
