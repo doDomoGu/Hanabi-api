@@ -27,8 +27,8 @@ class Room extends ActiveRecord
     const EXCEPTION_PLAYER_OVER_LIMIT_MSG   = '房间人数超过限制（大于2人）';
     const EXCEPTION_IN_MANY_ROOM_CODE  = 10003;
     const EXCEPTION_IN_MANY_ROOM_MSG   = '一个玩家在多个房间内';
-    const EXCEPTION_NO_HOST_PLAYER_CODE  = 10004;
-    const EXCEPTION_NO_HOST_PLAYER_MSG   = '房间内至少有一个玩家是主机';
+//    const EXCEPTION_NO_HOST_PLAYER_CODE  = 10004;
+//    const EXCEPTION_NO_HOST_PLAYER_MSG   = '房间内至少有一个玩家是主机';
     const EXCEPTION_EXIT_NOT_IN_ROOM_CODE  = 10005;
     const EXCEPTION_EXIT_NOT_IN_ROOM_MSG   = '退出操作，但是不在房间内';
     const EXCEPTION_EXIT_DELETE_FAILURE_CODE  = 10006;
@@ -43,8 +43,8 @@ class Room extends ActiveRecord
     const EXCEPTION_DO_READY_NOT_GUEST_PLAYER_MSG  = '准备操作，但是不是客机玩家';
     const EXCEPTION_DO_READY_FAILURE_CODE = 10011;
     const EXCEPTION_DO_READY_FAILURE_MSG  = '准备操作，失败';
-    const EXCEPTION_PLAYER_NOT_FOUND_CODE = 10012;
-    const EXCEPTION_PLAYER_NOT_FOUND_MSG  = '对应的玩家找不到';
+//    const EXCEPTION_PLAYER_NOT_FOUND_CODE = 10012;
+//    const EXCEPTION_PLAYER_NOT_FOUND_MSG  = '对应的玩家找不到';
 //    const EXCEPTION_PLAYER_NUMBER_WRONG_MSG   = '房间人数错误';
 //    const EXCEPTION_PLAYER_NUMBER_WRONG_CODE  = 10013;
 
@@ -127,22 +127,32 @@ class Room extends ActiveRecord
             RoomException::t('wrong_player_number');
         }
 
-        $hostPlayer = $room->hostPlayer;
-        $guestPlayer = $room->guestPlayer;
-        
-        # error: 没有主机玩家
-        if($roomPlayerNumber > 0 && !$hostPlayer) {
-            throw new \Exception(Room::EXCEPTION_NO_HOST_PLAYER_MSG, Room::EXCEPTION_NO_HOST_PLAYER_CODE);
+        # 房间为空结束检查
+        if($roomPlayerNumber == 0){
+            exit;
         }
 
-        # error: 有主机玩家 但是找不到对应的玩家信息
-        if($hostPlayer && !$hostPlayer->user){
-            throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
-        }
+        if($roomPlayerNumber > 0 ){
+            $hostPlayer = $room->hostPlayer;
 
-        # error: 有客机玩家 但是找不到对应的玩家信息
-        if($guestPlayer && !$guestPlayer->user){
-            throw new \Exception(Room::EXCEPTION_PLAYER_NOT_FOUND_MSG,Room::EXCEPTION_PLAYER_NOT_FOUND_CODE);
+            # error: 没有主机玩家
+            if(!$hostPlayer) {
+                RoomException::t('no_host_player');
+            }else{
+                # error: 有主机玩家 但是找不到对应的玩家信息
+                if(!$hostPlayer->user){
+                    RoomException::t('player_not_found');
+                }
+            }
+
+            if($roomPlayerNumber == 2){
+                $guestPlayer = $room->guestPlayer;
+
+                # error: 有客机玩家 但是找不到对应的玩家信息
+                if(!$guestPlayer->user){
+                    RoomException::t('player_not_found');
+                }
+            }
         }
     }
 
