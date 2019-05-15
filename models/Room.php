@@ -132,6 +132,7 @@ class Room extends ActiveRecord
             exit;
         }
 
+        # 房间非空开始检查玩家信息
         if($roomPlayerNumber > 0 ){
             $hostPlayer = $room->hostPlayer;
 
@@ -141,16 +142,21 @@ class Room extends ActiveRecord
             }else{
                 # error: 有主机玩家 但是找不到对应的玩家信息
                 if(!$hostPlayer->user){
-                    RoomException::t('player_not_found');
+                    RoomException::t('host_player_not_found');
                 }
             }
 
             if($roomPlayerNumber == 2){
                 $guestPlayer = $room->guestPlayer;
 
-                # error: 有客机玩家 但是找不到对应的玩家信息
-                if(!$guestPlayer->user){
-                    RoomException::t('player_not_found');
+                # error: 没有客机玩家
+                if(!$hostPlayer) {
+                    RoomException::t('no_guest_player');
+                }else{
+                    # error: 有客机玩家 但是找不到对应的玩家信息
+                    if(!$guestPlayer->user){
+                        RoomException::t('guest_player_not_found');
+                    }
                 }
             }
         }
@@ -159,29 +165,8 @@ class Room extends ActiveRecord
     # 获取room对象
     public static function getOne($roomId) {
         $room = self::find()->where(['id'=>$roomId])->one();
-//        Room::check($room);
+        Room::check($room);
         return $room;
     }
 
-    # 获得room详细信息
-    /*public static function getInfo($roomId) {
-        $roomInfo = [];
-
-        $room = Room::getOne($roomId);
-        $hostPlayer = $room->hostPlayer;
-        $guestPlayer = $room->guestPlayer;
-
-        $roomInfo['hostPlayer'] = $hostPlayer ? [
-            'id' => $hostPlayer->user->id,
-            'name' => $hostPlayer->user->nickname,
-        ] : null;
-        $roomInfo['guestPlayer'] = $guestPlayer ? [
-            'id' => $guestPlayer->user->id,
-            'name' => $guestPlayer->user->nickname,
-        ] : null;
-        $roomInfo['isHost'] = $hostPlayer && $hostPlayer->user->id == Yii::$app->user->id;
-        $roomInfo['isReady'] = $guestPlayer && $guestPlayer->is_ready > 0;
-
-        return $roomInfo;
-    }*/
 }

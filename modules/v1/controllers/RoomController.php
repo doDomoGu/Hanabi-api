@@ -50,8 +50,8 @@ class RoomController extends MyActiveController {
     }
 
     //测试用
-    public function actionRefreshSysLastupdated(){
+    /*public function actionRefreshSysLastupdated(){
         RoomListCache::updateSysKey();
         return date('Y-m-d H:i:s');
-    }
+    }*/
 }

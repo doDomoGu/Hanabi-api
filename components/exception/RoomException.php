@@ -13,12 +13,20 @@ class RoomException extends MyException {
             'code' => 10013
         ],
         'no_host_player' => [
-            'msg' => '房间内至少有一个玩家是主机',
+            'msg' => '房间内玩家非空，但没有主机玩家',
+            'code' => 10003
+        ],
+        'no_guest_player' => [
+            'msg' => '房间内有两个玩家，但没有客机玩家',
             'code' => 10004
         ],
-        'player_not_found' => [
-            'msg' => '对应的玩家找不到',
-            'code' => 10012
+        'host_player_not_found' => [
+            'msg' => '对应的主机玩家找不到',
+            'code' => 10005
+        ],
+        'guest_player_not_found' => [
+            'msg' => '对应的客机玩家找不到',
+            'code' => 10006
         ],
         /*'wrong_player_number' => [
             'msg' => '房间人数错误',
