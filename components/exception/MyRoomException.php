@@ -27,7 +27,15 @@ class MyRoomException extends MyException {
         'do_exit_failure' => [
             'msg' => '退出操作，删除玩家失败',
             'code' => 20006
-        ]
+        ],
+        'do_ready_not_in_room' => [
+            'msg' => '准备操作，但是不在房间内',
+            'code' => 20007
+        ],
+        'do_ready_not_guest_player' => [
+            'msg' => '准备操作，但是不是客机玩家',
+            'code' => 20008
+        ],
 
     ];
 

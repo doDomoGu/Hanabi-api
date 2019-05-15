@@ -37,8 +37,8 @@ class Room extends ActiveRecord
 //    const EXCEPTION_ENTER_HAS_IN_ROOM_MSG   = '进入操作，但是已经在房间中';
 //    const EXCEPTION_ENTER_PLAYER_FULL_CODE  = 10008;
 //    const EXCEPTION_ENTER_PLAYER_FULL_MSG   = '进入操作，但是房间已满';
-    const EXCEPTION_DO_READY_NOT_IN_ROOM_CODE = 10009;
-    const EXCEPTION_DO_READY_NOT_IN_ROOM_MSG  = '准备操作，但是不在房间内';
+//    const EXCEPTION_DO_READY_NOT_IN_ROOM_CODE = 10009;
+//    const EXCEPTION_DO_READY_NOT_IN_ROOM_MSG  = '准备操作，但是不在房间内';
     const EXCEPTION_DO_READY_NOT_GUEST_PLAYER_CODE = 10010;
     const EXCEPTION_DO_READY_NOT_GUEST_PLAYER_MSG  = '准备操作，但是不是客机玩家';
     const EXCEPTION_DO_READY_FAILURE_CODE = 10011;

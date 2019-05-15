@@ -156,7 +156,7 @@ class MyRoomController extends MyActiveController{
         # 检查是否在 房间内
         list($isInRoom, $roomId) = MyRoom::isIn();
         if(!$isInRoom){
-            throw new \Exception(Room::EXCEPTION_DO_READY_NOT_IN_ROOM_MSG,Room::EXCEPTION_DO_READY_NOT_IN_ROOM_CODE);
+            MyRoomException::t('do_ready_not_in_room');
         }
 
         # 获取room对象
@@ -166,7 +166,7 @@ class MyRoomController extends MyActiveController{
 
         # 判断你是否是客机玩家
         if(!$guestPlayer || !$guestPlayer->user || $guestPlayer->user->id != Yii::$app->user->id ){
-            throw new \Exception(Room::EXCEPTION_DO_READY_NOT_GUEST_PLAYER_MSG,Room::EXCEPTION_DO_READY_NOT_GUEST_PLAYER_CODE);
+            MyRoomException::t('do_ready_not_guest_player');
         }
 
         /*
