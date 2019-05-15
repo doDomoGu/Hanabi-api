@@ -23,20 +23,20 @@ class Room extends ActiveRecord
 
 //    const EXCEPTION_NOT_FOUND_CODE  = 10001;
 //    const EXCEPTION_NOT_FOUND_MSG   = '房间不存在';
-    const EXCEPTION_PLAYER_OVER_LIMIT_CODE  = 10002;
-    const EXCEPTION_PLAYER_OVER_LIMIT_MSG   = '房间人数超过限制（大于2人）';
-    const EXCEPTION_IN_MANY_ROOM_CODE  = 10003;
-    const EXCEPTION_IN_MANY_ROOM_MSG   = '一个玩家在多个房间内';
+//    const EXCEPTION_PLAYER_OVER_LIMIT_CODE  = 10002;
+//    const EXCEPTION_PLAYER_OVER_LIMIT_MSG   = '房间人数超过限制（大于2人）';
+//    const EXCEPTION_IN_MANY_ROOM_CODE  = 10003;
+//    const EXCEPTION_IN_MANY_ROOM_MSG   = '一个玩家在多个房间内';
 //    const EXCEPTION_NO_HOST_PLAYER_CODE  = 10004;
 //    const EXCEPTION_NO_HOST_PLAYER_MSG   = '房间内至少有一个玩家是主机';
-    const EXCEPTION_EXIT_NOT_IN_ROOM_CODE  = 10005;
-    const EXCEPTION_EXIT_NOT_IN_ROOM_MSG   = '退出操作，但是不在房间内';
+//    const EXCEPTION_EXIT_NOT_IN_ROOM_CODE  = 10005;
+//    const EXCEPTION_EXIT_NOT_IN_ROOM_MSG   = '退出操作，但是不在房间内';
     const EXCEPTION_EXIT_DELETE_FAILURE_CODE  = 10006;
     const EXCEPTION_EXIT_DELETE_FAILURE_MSG   = '退出操作，删除玩家失败';
-    const EXCEPTION_ENTER_HAS_IN_ROOM_CODE  = 10007;
-    const EXCEPTION_ENTER_HAS_IN_ROOM_MSG   = '进入操作，但是已经在房间中';
-    const EXCEPTION_ENTER_PLAYER_FULL_CODE  = 10008;
-    const EXCEPTION_ENTER_PLAYER_FULL_MSG   = '进入操作，但是房间已满';
+//    const EXCEPTION_ENTER_HAS_IN_ROOM_CODE  = 10007;
+//    const EXCEPTION_ENTER_HAS_IN_ROOM_MSG   = '进入操作，但是已经在房间中';
+//    const EXCEPTION_ENTER_PLAYER_FULL_CODE  = 10008;
+//    const EXCEPTION_ENTER_PLAYER_FULL_MSG   = '进入操作，但是房间已满';
     const EXCEPTION_DO_READY_NOT_IN_ROOM_CODE = 10009;
     const EXCEPTION_DO_READY_NOT_IN_ROOM_MSG  = '准备操作，但是不在房间内';
     const EXCEPTION_DO_READY_NOT_GUEST_PLAYER_CODE = 10010;
@@ -165,7 +165,7 @@ class Room extends ActiveRecord
     # 获取room对象
     public static function getOne($roomId) {
         $room = self::find()->where(['id'=>$roomId])->one();
-        Room::check($room);
+//        Room::check($room);
         return $room;
     }
 

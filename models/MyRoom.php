@@ -2,6 +2,8 @@
 
 namespace app\models;
 
+use app\components\exception\MyRoomException;
+use app\components\exception\RoomException;
 use Yii;
 
 class MyRoom {
@@ -15,13 +17,13 @@ class MyRoom {
      *
      */
     public static function isIn(){
-        $roomCount = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->count(); //所在房间数量
+        $inRoomCount = (int) RoomPlayer::find()->where(['user_id' => Yii::$app->user->id])->count(); //所在房间数量
         # error：一个玩家不应该在多个房间
-        if($roomCount > 1){
-            throw new \Exception(Room::EXCEPTION_IN_MANY_ROOM_MSG,Room::EXCEPTION_IN_MANY_ROOM_CODE);
+        if(!in_array($inRoomCount, [0, 1])){
+            MyRoomException::t('in_too_many_rooms');
         }
         # 不在房间内，返回[false, -1]
-        if ($roomCount === 0){
+        if ($inRoomCount === 0){
             return [false, -1];
         }
         # 获得所在房间ID
@@ -39,11 +41,13 @@ class MyRoom {
     public static function getInfo() {
         $roomInfo = [];
         # 检查是否在房间内，并返回房间ID
-        list($isInRoom, $roomInfo['roomId']) = MyRoom::isIn();
+        list($isInRoom, $roomId) = MyRoom::isIn();
         # $isInRoom = false, 不在房间里 只返回 roomId = -1
         # $isInRoom = true, 在房间中，根据ID获取详细的房间信息
+        $roomInfo['roomId'] = $roomId;
+
         if($isInRoom){
-            $room = Room::getOne($roomInfo['roomId']);
+            $room = Room::getOne($roomId);
             $hostPlayer = $room->hostPlayer;
             $guestPlayer = $room->guestPlayer;
             $roomInfo['hostPlayer'] = $hostPlayer ? [

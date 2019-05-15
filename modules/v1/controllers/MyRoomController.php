@@ -4,6 +4,7 @@ namespace app\modules\v1\controllers;
 
 use app\components\cache\MyRoomCache;
 use app\components\cache\RoomListCache;
+use app\components\exception\MyRoomException;
 use app\models\MyRoom;
 use app\models\RoomPlayer;
 use Yii;
@@ -66,7 +67,7 @@ class MyRoomController extends MyActiveController{
         # 检查是否不在房间内
         list($isInRoom) = MyRoom::isIn();
         if($isInRoom){
-            throw new \Exception(Room::EXCEPTION_ENTER_HAS_IN_ROOM_MSG,Room::EXCEPTION_ENTER_HAS_IN_ROOM_CODE);
+            MyRoomException::t('do_enter_already_in_room');
         }
 
         $roomId = (int) Yii::$app->request->post('roomId');
@@ -74,7 +75,7 @@ class MyRoomController extends MyActiveController{
 
         if ($room->password != '') {
             //TODO 房间密码处理
-            throw new \Exception('房间有密码',12345);
+            MyRoomException::t('do_enter_locked_room_by_wrong_password');
         }
 
         $hostPlayer = $room->hostPlayer;
@@ -82,7 +83,7 @@ class MyRoomController extends MyActiveController{
 
         # 房间已满
         if($hostPlayer && $guestPlayer) {
-            throw new \Exception(Room::EXCEPTION_ENTER_PLAYER_FULL_MSG,Room::EXCEPTION_ENTER_PLAYER_FULL_CODE);
+            MyRoomException::t('do_enter_full_room');
         }
 
         if (!$hostPlayer) {
@@ -103,7 +104,7 @@ class MyRoomController extends MyActiveController{
             $newRoomPlayer->save();
 
             # 清空房主的房间信息缓存
-            MyRoomCache::clear($hostPlayer->user->id);
+            MyRoomCache::clear($hostPlayer->user_id);
         }
 
         RoomListCache::updateSysKey();
@@ -113,7 +114,7 @@ class MyRoomController extends MyActiveController{
         # 检查是否在 房间内
         list($isInRoom, $roomId) = MyRoom::isIn();
         if(!$isInRoom){
-            throw new \Exception(Room::EXCEPTION_EXIT_NOT_IN_ROOM_MSG,Room::EXCEPTION_EXIT_NOT_IN_ROOM_CODE);
+            MyRoomException::t('do_exit_not_in_room');
         }
         # 获取room对象
         $room =  Room::getOne($roomId);
@@ -125,26 +126,26 @@ class MyRoomController extends MyActiveController{
 
         # 删除数等于0 ， 删除失败
         if( $rowCount === 0 ){
-            throw new \Exception(Room::EXCEPTION_EXIT_DELETE_FAILURE_MSG,Room::EXCEPTION_EXIT_DELETE_FAILURE_CODE);
+            MyRoomException::t('do_exit_failure');
         }
 
         # 清空对应玩家的房间信息缓存
         MyRoomCache::clear(Yii::$app->user->id);
 
         #原本是主机玩家  要对应改变客机玩家的状态 （原本的客机玩家变成这个房间的主机玩家，准备状态清空）
-        if($hostPlayer && $hostPlayer->user->id == Yii::$app->user->id){
+        if($hostPlayer && $hostPlayer->user_id == Yii::$app->user->id){
             if($guestPlayer){
                 $guestPlayer->is_host = 1;
                 $guestPlayer->is_ready = 0;
                 $guestPlayer->save();
 
                 //清空房主(此时的房主是原先的访客)的房间信息缓存
-                MyRoomCache::clear($guestPlayer->user->id);
+                MyRoomCache::clear($guestPlayer->user_id);
             }
         }else{
             if($hostPlayer){
                 //清空房主的房间信息缓存
-                MyRoomCache::clear($hostPlayer->user->id);
+                MyRoomCache::clear($hostPlayer->user_id);
             }
         }
 
