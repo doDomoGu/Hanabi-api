@@ -3,6 +3,7 @@
 namespace app\modules\v1\controllers;
 
 use app\components\cache\MyGameCache;
+use app\components\exception\MyGameException;
 use app\models\GameCard;
 use app\models\History;
 use app\models\HistoryLog;
@@ -124,8 +125,9 @@ class MyGameController extends MyActiveController
         list($isInRoom, $roomId) = MyRoom::isIn();
         #不在房间中 抛出异常
         if(!$isInRoom) {
-            throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
+            MyGameException::t('not_in_room');
         }
+
         $isPlaying = Game::isPlaying($roomId);
 
         $data = [];
@@ -135,7 +137,8 @@ class MyGameController extends MyActiveController
             return $data;
         }
         if ($mode == 'all') {
-            $game = Game::find()->where(['room_id'=>$roomId])->one();
+            $game = Game::getOne($roomId);
+
             $data['game'] = [
                 'roundNum' => $game->round_num,
                 'roundPlayerIsHost' => $game->round_player_is_host == 1,

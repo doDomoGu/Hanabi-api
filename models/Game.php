@@ -6,6 +6,7 @@ namespace app\models;
 use app\components\cache\MyGameCache;
 use app\components\cache\MyRoomCache;
 use app\components\cache\RoomListCache;
+use app\components\exception\GameException;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
@@ -34,20 +35,20 @@ class Game extends ActiveRecord
     const STATUS_PLAYING = 1;
     const STATUS_END = 2;
 
-    const EXCEPTION_NOT_IN_ROOM_CODE  = 20001;
-    const EXCEPTION_NOT_IN_ROOM_MSG   = '在判断是否在进行游戏时，发现玩家根本不在房间中';
-    const EXCEPTION_WRONG_CHANCE_NUM_CODE  = 20002;
-    const EXCEPTION_WRONG_CHANCE_NUM_MSG   = '机会数错误';
-    const EXCEPTION_WRONG_CUE_NUM_CODE  = 20003;
-    const EXCEPTION_WRONG_CUE_NUM_MSG   = '提示数错误';
-    const EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE  = 20004;
-    const EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG   = '不在游戏中，但是有卡牌存在';
-    const EXCEPTION_WRONG_CARD_NUM_ALL_CODE  = 20005;
-    const EXCEPTION_WRONG_CARD_NUM_ALL_MSG   = '游戏中，但是总卡牌数不对';
-    const EXCEPTION_GUEST_PLAYER_NOT_READY_CODE  = 20006;
-    const EXCEPTION_GUEST_PLAYER_NOT_READY_MSG   = '游戏中，但是客机玩家没有准备';
-    const EXCEPTION_WRONG_PLAYERS_CODE  = 20007;
-    const EXCEPTION_WRONG_PLAYERS_MSG   = '游戏中，玩家信息错误';
+//    const EXCEPTION_NOT_IN_ROOM_CODE  = 20001;
+//    const EXCEPTION_NOT_IN_ROOM_MSG   = '在判断是否在进行游戏时，发现玩家根本不在房间中';
+//    const EXCEPTION_WRONG_CHANCE_NUM_CODE  = 20002;
+//    const EXCEPTION_WRONG_CHANCE_NUM_MSG   = '机会数错误';
+//    const EXCEPTION_WRONG_CUE_NUM_CODE  = 20003;
+//    const EXCEPTION_WRONG_CUE_NUM_MSG   = '提示数错误';
+//    const EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE  = 20004;
+//    const EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG   = '不在游戏中，但是有卡牌存在';
+//    const EXCEPTION_WRONG_CARD_NUM_ALL_CODE  = 20005;
+//    const EXCEPTION_WRONG_CARD_NUM_ALL_MSG   = '游戏中，但是总卡牌数不对';
+//    const EXCEPTION_GUEST_PLAYER_NOT_READY_CODE  = 20006;
+//    const EXCEPTION_GUEST_PLAYER_NOT_READY_MSG   = '游戏中，但是客机玩家没有准备';
+//    const EXCEPTION_WRONG_PLAYERS_CODE  = 20007;
+//    const EXCEPTION_WRONG_PLAYERS_MSG   = '游戏中，玩家信息错误';
     const EXCEPTION_START_GAME_HAS_STARTED_CODE  = 20008;
     const EXCEPTION_START_GAME_HAS_STARTED_MSG   = '开始游戏操作，但是游戏已经开始了';
     const EXCEPTION_START_GAME_WRONG_PLAYERS_CODE  = 20009;
@@ -137,81 +138,64 @@ class Game extends ActiveRecord
         ];
     }
 
-    public static function getOne($roomId) {
-        $game = self::find()->where(['room_id'=>$roomId])->one();
-        //self::check($game);
+    public static function getOne($roomId, $check=true) {
+        $game = self::findOne(['room_id'=>$roomId]);
+        if($check){
+            self::check($roomId);
+        }
         return $game;
     }
 
-    // 通过roomId 判断是否在游戏中状态
+    // 通过roomId 判断是否在游戏中
     public static function isPlaying($roomId){
-        $game = Game::find()->where(['room_id'=>$roomId])->one();
-        $gameCardCount = (int) GameCard::find()->where(['room_id'=>$roomId])->count();
-        #不在游戏中
-        if(!$game) {
-            #不在游戏中，但是有卡牌存在
-            if($gameCardCount > 0) {
-                throw new \Exception(Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG,Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE);
-            }
-            #返回false
-            return false;
+        $game = self::getOne($roomId);
+        return !!$game;
+    }
+
+    # 检查游戏状态
+    # 参数：$roomId
+    # 无返回值
+    public static function check($roomId){
+        $game = self::getOne($roomId, false);
+
+        # 游戏未开始 检查结束
+        if(!$game){
+            return ;
         }
-        #在游戏中
-        #以下是检查游戏状态
-        //list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
+
+        # 游戏中
+        # 获取房间和玩家信息
         $room =  Room::getOne($roomId);
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
         $isReady = $guestPlayer->is_ready == 1;
 
-        if(!$hostPlayer || !$guestPlayer) {
-            throw new \Exception(Game::EXCEPTION_WRONG_PLAYERS_MSG,Game::EXCEPTION_WRONG_PLAYERS_CODE);
+        # 主客机玩家有任何的错误
+        if(!$hostPlayer || !$hostPlayer->user || !$guestPlayer || !$guestPlayer->user) {
+            GameException::t('wrong_players');
         }
-        if(!$isReady) {
-            throw new \Exception(Game::EXCEPTION_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_GUEST_PLAYER_NOT_READY_CODE);
-        }
-        if($game->chance_num < 1){
-            throw new \Exception(Game::EXCEPTION_WRONG_CHANCE_NUM_MSG,Game::EXCEPTION_WRONG_CHANCE_NUM_CODE);
-        }
-        if($game->cue_num < 0){
-            throw new \Exception(Game::EXCEPTION_WRONG_CUE_NUM_MSG,Game::EXCEPTION_WRONG_CUE_NUM_CODE);
-        }
-        #游戏中，但是总卡牌数不对
-        if($gameCardCount != Card::CARD_NUM_ALL){
-            throw new \Exception(Game::EXCEPTION_WRONG_CARD_NUM_ALL_MSG,Game::EXCEPTION_WRONG_CARD_NUM_ALL_CODE);
-        }
-        return true;
-    }
 
-//    public static function check($roomId, $notCheck = []){
-//
-//        list($room, list($hostPlayer, $guestPlayer, $isHost, $isReady)) = Room::getInfo($roomId, true);
-//
-//        $game = Game::find()->where(['room_id'=>$roomId])->one();
-//        $gameCardCount = (int) GameCard::find()->where(['room_id'=>$roomId])->count();
-//
-//        if(!$hostPlayer || !$guestPlayer) {
-//            throw new \Exception(Game::EXCEPTION_WRONG_PLAYERS_MSG,Game::EXCEPTION_WRONG_PLAYERS_CODE);
-//        }
-//        if(!$isReady) {
-//            throw new \Exception(Game::EXCEPTION_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_GUEST_PLAYER_NOT_READY_CODE);
-//        }
-//        /*if ($game->status != Game::STATUS_PLAYING) {
-//
-//        }*/
-//        if(!in_array('chance_num', $notCheck)){
-//            if($game->chance_num < 1){
-//                throw new \Exception(Game::EXCEPTION_WRONG_CHANCE_NUM_MSG,Game::EXCEPTION_WRONG_CHANCE_NUM_CODE);
-//            }
-//        }
-//        if($game->cue_num < 0){
-//            throw new \Exception(Game::EXCEPTION_WRONG_CUE_NUM_MSG,Game::EXCEPTION_WRONG_CUE_NUM_CODE);
-//        }
-//        #游戏中，但是总卡牌数不对
-//        if($gameCardCount != Card::CARD_NUM_ALL){
-//            throw new \Exception(Game::EXCEPTION_WRONG_CARD_NUM_ALL_MSG,Game::EXCEPTION_WRONG_CARD_NUM_ALL_CODE);
-//        }
-//    }
+        # 客机玩家非准备状态
+        if(!$isReady) {
+            GameException::t('guest_player_not_ready');
+        }
+
+        # 剩余机会数应大于0
+        if($game->chance_num < 1){
+            GameException::t('wrong_chance_num');
+        }
+
+        # 剩余提示数应大于0
+        if($game->cue_num < 0){
+            GameException::t('wrong_cue_num');
+        }
+
+        # 总卡牌数不正确
+        $gameCardCount = (int) GameCard::find()->where(['room_id'=>$roomId])->count();
+        if($gameCardCount != Card::$total_num){
+            GameException::t('wrong_game_card_total_num');
+        }
+    }
 
     public static function createOne($roomId){
         $room =  Room::getOne($roomId);
@@ -614,7 +598,7 @@ class Game extends ActiveRecord
 
         }elseif($cueType=='num'){
             #获取手牌中数字一样的牌
-            $cardCueList = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType])->andWhere(['in','num',Card::$numbers2[Card::$numbers[$cardSelected->num]]])->orderby('type_ord asc')->all();
+            $cardCueList = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType])->andWhere(['in','num',Card::$numbers_reverse[Card::$numbers[$cardSelected->num]]])->orderby('type_ord asc')->all();
         }else{
             throw new \Exception('错误的提示类型',88888);
         }

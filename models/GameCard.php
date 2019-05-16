@@ -126,7 +126,7 @@ class GameCard extends ActiveRecord
 
         $cards = GameCard::find()->where(['room_id'=>$roomId])->count();
 
-        if($cards <> Card::CARD_NUM_ALL){
+        if($cards <> Card::$total_num){
             throw new \Exception(Game::EXCEPTION_WRONG_CARD_NUM_ALL_MSG,Game::EXCEPTION_WRONG_CARD_NUM_ALL_CODE);
         }
 

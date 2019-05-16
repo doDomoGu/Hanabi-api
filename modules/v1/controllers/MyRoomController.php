@@ -171,11 +171,6 @@ class MyRoomController extends MyActiveController{
             MyRoomException::t('do_ready_not_guest_player');
         }
 
-        /*
-         * TODO 检查游戏状态
-         * list($isInGame) = Game::isInGame();
-        $game = Game::find()->where(['room_id'=>$room->id,'status'=>Game::STATUS_PLAYING])->one();*/
-
         $guestPlayer->is_ready = $guestPlayer->is_ready ? 0 : 1;
         if($guestPlayer->save()){
             //清空房间内玩家的信息缓存
