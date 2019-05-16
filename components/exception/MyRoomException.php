@@ -36,6 +36,10 @@ class MyRoomException extends MyException {
             'msg' => '准备操作，但是不是客机玩家',
             'code' => 20008
         ],
+        'do_ready_failure' => [
+            'msg' => '准备操作，失败',
+            'code' => 20009
+        ]
 
     ];
 

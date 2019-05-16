@@ -71,6 +71,7 @@ class MyRoomController extends MyActiveController{
         }
 
         $roomId = (int) Yii::$app->request->post('roomId');
+
         $room = Room::getOne($roomId);
 
         if ($room->password != '') {
@@ -117,7 +118,8 @@ class MyRoomController extends MyActiveController{
             MyRoomException::t('do_exit_not_in_room');
         }
         # 获取room对象
-        $room =  Room::getOne($roomId);
+        $room = Room::getOne($roomId);
+
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
 
@@ -180,7 +182,7 @@ class MyRoomController extends MyActiveController{
             MyRoomCache::clear($hostPlayer->user->id);
             MyRoomCache::clear($guestPlayer->user->id);
         }else{
-            throw new \Exception(Room::EXCEPTION_DO_READY_FAILURE_MSG,Room::EXCEPTION_DO_READY_FAILURE_CODE);
+            MyRoomException::t('do_ready_failure');
         }
     }
 
