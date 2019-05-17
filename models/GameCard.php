@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\components\exception\MyGameException;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
@@ -97,24 +98,24 @@ class GameCard extends ActiveRecord
 
     //初始化牌库
     public static function initLibrary($roomId){
-        $cardCount = GameCard::find()->where(['room_id'=>$roomId])->count();
+        $cardCount = (int) GameCard::find()->where(['room_id'=>$roomId])->count();
         if($cardCount > 0) {
-            throw new \Exception(Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG,Game::EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE);
+            MyGameException::t('game_card_library_init_but_has_card');
         }
 
-
-        $cardArr = [];
+        $cardArr = []; //遍历colors和numbers数组生成50张卡牌组合
         foreach(Card::$colors as $k=>$v){
             foreach(Card::$numbers as $k2=>$v2){
                 $cardArr[] = [$k,$k2];
             }
         }
+        //打乱顺序
         shuffle($cardArr);
 
-        $insertArr = [];
-        $ord = 0;
+        $insertArr = []; //整理入库数据
+        $ord = 0; //卡牌顺序为 0 ~ 49; type_ord：类型顺序和类型相关; ord：唯一不变
         foreach($cardArr as $c){
-            $insertArr[] = [$roomId,GameCard::TYPE_IN_LIBRARY,$ord,$c[0],$c[1],$ord,date('Y-m-d H:i:s')];
+            $insertArr[] = [$roomId, GameCard::TYPE_IN_LIBRARY,$ord,$c[0],$c[1],$ord,date('Y-m-d H:i:s')];
             $ord++;
         }
 
@@ -124,10 +125,10 @@ class GameCard extends ActiveRecord
             $insertArr
         )->execute();
 
-        $cards = GameCard::find()->where(['room_id'=>$roomId])->count();
-
-        if($cards <> Card::$total_num){
-            throw new \Exception(Game::EXCEPTION_WRONG_CARD_NUM_ALL_MSG,Game::EXCEPTION_WRONG_CARD_NUM_ALL_CODE);
+        //检查卡牌数是否与总数一致
+        $cardCount2 = (int) GameCard::find()->where(['room_id'=>$roomId])->count();
+        if($cardCount2 <> Card::$total_num){
+            MyGameException::t('game_card_library_init_wrong_card_total_num');
         }
 
     }

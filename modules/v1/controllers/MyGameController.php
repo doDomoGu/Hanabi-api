@@ -3,6 +3,7 @@
 namespace app\modules\v1\controllers;
 
 use app\components\cache\MyGameCache;
+use app\components\cache\MyRoomCache;
 use app\components\exception\MyGameException;
 use app\models\GameCard;
 use app\models\History;
@@ -51,7 +52,7 @@ class MyGameController extends MyActiveController
             MyGameException::t('do_start_game_has_started');
         }
 
-        $room =  Room::getOne($roomId);
+        $room =  Room::getOne($roomId, false); //MyRoom:isIn() 已经对Room做过检查
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
 
@@ -61,14 +62,59 @@ class MyGameController extends MyActiveController
         }
         # error：操作人不是主机玩家
         if($hostPlayer->user->id != Yii::$app->user->id) {
-            MyGameException::t('do_start_not_host_players');
+            MyGameException::t('do_start_not_host_player');
         }
         # error：客机玩家没有准备
         if($guestPlayer->is_ready != 1) {
-            throw new \Exception(Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_MSG,Game::EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE);
+            MyGameException::t('do_start_guest_player_not_ready');
         }
 
-        Game::createOne($roomId);
+        # 开始创建游戏
+        $game = new Game();
+        $game->room_id = $roomId;
+        $game->round_num = 1; //当前回合数 1
+        $game->round_player_is_host = rand(0,1); //随机选择一个玩家开始第一个回合
+        $game->cue_num = Game::DEFAULT_CUE; //剩余提示数
+        $game->chance_num = Game::DEFAULT_CHANCE; //剩余机会数
+        $game->status = Game::STATUS_PLAYING;  //TODO 暂时无用因为永远是1 PLAYING
+        $game->score = 0; //当前分数
+        if($game->save()){
+            //初始化牌库
+            GameCard::initLibrary($roomId);
+            //主机/客机玩家 各模五张牌
+            for($i=0;$i<5;$i++){
+                GameCard::drawCard($roomId,true);
+                GameCard::drawCard($roomId,false);
+            }
+            #创建游戏History
+            $history = new History();
+            $history->room_id = $room->id;
+            $history->status = History::STATUS_PLAYING;
+            $history->score = 0;
+            if($history->save()){
+                $historyPlayer = new HistoryPlayer();
+                $historyPlayer->history_id = $history->id;
+                $historyPlayer->user_id = $hostPlayer->user_id;
+                $historyPlayer->is_host = 1;
+                $historyPlayer->save();
+                $historyPlayer = new HistoryPlayer();
+                $historyPlayer->history_id = $history->id;
+                $historyPlayer->user_id = $guestPlayer->user_id;
+                $historyPlayer->is_host = 0;
+                $historyPlayer->save();
+            }else{
+                throw new \Exception(Game::EXCEPTION_CREATE_HISTORY_FAILURE_MSG,Game::EXCEPTION_CREATE_HISTORY_FAILURE_CODE);
+            }
+        }else{
+            MyGameException::t('do_start_create_game_failure');
+        }
+
+        MyRoomCache::clear($hostPlayer->user_id);
+        MyRoomCache::clear($guestPlayer->user_id);
+
+
+
+//        Game::createOne($roomId);
     }
 
     /**
