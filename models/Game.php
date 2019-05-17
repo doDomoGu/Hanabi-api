@@ -49,8 +49,8 @@ class Game extends ActiveRecord
 //    const EXCEPTION_GUEST_PLAYER_NOT_READY_MSG   = '游戏中，但是客机玩家没有准备';
 //    const EXCEPTION_WRONG_PLAYERS_CODE  = 20007;
 //    const EXCEPTION_WRONG_PLAYERS_MSG   = '游戏中，玩家信息错误';
-    const EXCEPTION_START_GAME_HAS_STARTED_CODE  = 20008;
-    const EXCEPTION_START_GAME_HAS_STARTED_MSG   = '开始游戏操作，但是游戏已经开始了';
+//    const EXCEPTION_START_GAME_HAS_STARTED_CODE  = 20008;
+//    const EXCEPTION_START_GAME_HAS_STARTED_MSG   = '开始游戏操作，但是游戏已经开始了';
     const EXCEPTION_START_GAME_WRONG_PLAYERS_CODE  = 20009;
     const EXCEPTION_START_GAME_WRONG_PLAYERS_MSG   = '开始游戏操作，房间内游戏玩家信息错误';
     const EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE  = 20010;

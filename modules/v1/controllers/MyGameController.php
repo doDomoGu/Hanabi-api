@@ -42,25 +42,26 @@ class MyGameController extends MyActiveController
 
     public function actionStart(){
         list($isInRoom, $roomId) = MyRoom::isIn();
-        #不在房间中 抛出异常
+        # error: 不在房间中
         if(!$isInRoom) {
-            throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
+            MyGameException::t('do_start_not_in_room');
         }
         # error：游戏已经开始
         if(Game::isPlaying($roomId)) {
-            throw new \Exception(Game::EXCEPTION_START_GAME_HAS_STARTED_MSG,Game::EXCEPTION_START_GAME_HAS_STARTED_CODE);
+            MyGameException::t('do_start_game_has_started');
         }
+
         $room =  Room::getOne($roomId);
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
 
-        # error：主机/客机玩家不全都存在
+        # error：游戏玩家错误
         if(!$hostPlayer || !$guestPlayer) {
-            throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_PLAYERS_MSG,Game::EXCEPTION_START_GAME_WRONG_PLAYERS_CODE);
+            MyGameException::t('do_start_wrong_players');
         }
         # error：操作人不是主机玩家
         if($hostPlayer->user->id != Yii::$app->user->id) {
-            throw new \Exception(Game::EXCEPTION_START_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_START_GAME_NOT_HOST_PLAYER_CODE);
+            MyGameException::t('do_start_not_host_players');
         }
         # error：客机玩家没有准备
         if($guestPlayer->is_ready != 1) {
