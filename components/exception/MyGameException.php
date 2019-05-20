@@ -40,7 +40,33 @@ class MyGameException extends MyException {
             'msg' => '初始化游戏牌库后，总卡牌数不对',
             'code' => 50009
         ],
+        'do_start_create_game_history_failure' => [
+            'msg' => '开始游戏操作时，创建游戏记录失败',
+            'code' => 50010
+        ],
+        'do_end_not_in_room' => [
+            'msg' => '结束游戏操作时，不在房间中',
+            'code' => 50011
+        ],
+        'do_end_game_not_playing' => [
+            'msg' => '结束游戏操作时，游戏未游玩中',
+            'code' => 50012
+        ],
+        'do_end_not_host_player' => [
+            'msg' => '结束游戏操作时，操作人不是主机玩家',
+            'code' => 50013
+        ],
 
+        'do_end_not_host_player' => [
+            'msg' => '结束游戏操作时，操作人不是主机玩家',
+            'code' => 50013
+        ],
+
+
+        'do_end_not_host_player' => [
+            'msg' => '结束游戏操作时，操作人不是主机玩家',
+            'code' => 50013
+        ],
     ];
 
 }

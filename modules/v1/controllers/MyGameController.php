@@ -91,7 +91,7 @@ class MyGameController extends MyActiveController
             $history->room_id = $room->id;
             $history->status = History::STATUS_PLAYING;
             $history->score = 0;
-            if($history->save()){
+            if ($history->save()) {
                 $historyPlayer = new HistoryPlayer();
                 $historyPlayer->history_id = $history->id;
                 $historyPlayer->user_id = $hostPlayer->user_id;
@@ -102,8 +102,8 @@ class MyGameController extends MyActiveController
                 $historyPlayer->user_id = $guestPlayer->user_id;
                 $historyPlayer->is_host = 0;
                 $historyPlayer->save();
-            }else{
-                throw new \Exception(Game::EXCEPTION_CREATE_HISTORY_FAILURE_MSG,Game::EXCEPTION_CREATE_HISTORY_FAILURE_CODE);
+            } else {
+                MyGameException::t('do_start_create_game_history_failure');
             }
         }else{
             MyGameException::t('do_start_create_game_failure');
@@ -112,9 +112,6 @@ class MyGameController extends MyActiveController
         MyRoomCache::clear($hostPlayer->user_id);
         MyRoomCache::clear($guestPlayer->user_id);
 
-
-
-//        Game::createOne($roomId);
     }
 
     /**
@@ -131,20 +128,43 @@ class MyGameController extends MyActiveController
         list($isInRoom, $roomId) = MyRoom::isIn();
         #不在房间中 抛出异常
         if(!$isInRoom) {
-            throw new \Exception(Game::EXCEPTION_NOT_IN_ROOM_MSG,Game::EXCEPTION_NOT_IN_ROOM_CODE);
+            MyGameException::t('do_end_not_in_room');
         }
-        # 不在游戏中
+        # 游戏未开始
         if(!Game::isPlaying($roomId)) {
-            throw new \Exception(Game::EXCEPTION_END_GAME_HAS_NO_GAME_MSG,Game::EXCEPTION_END_GAME_HAS_NO_GAME_CODE);
+            MyGameException::t('do_end_game_not_playing');
         }
 
         $room = Room::getOne($roomId);
-        //暂时主机玩家可以强制结束游戏
-        if($room->hostPlayer->user_id != Yii::$app->user->id){
-            throw new \Exception(Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG,Game::EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE);
+        $hostPlayer = $room->hostPlayer;
+        $guestPlayer = $room->guestPlayer;
+
+        // TODO 暂时主机玩家可以强制结束游戏
+        # 操作人不是主机玩家
+        if($hostPlayer->user_id != Yii::$app->user->id){
+            MyGameException::t('do_end_not_host_player');
         }
 
-        Game::deleteOne($roomId);
+        # 删除游戏数据
+        Game::deleteAll(['room_id'=>$roomId]);
+        GameCard::deleteAll(['room_id'=>$roomId]);
+
+        # 修改客机玩家状态为"未准备"
+        if($guestPlayer){
+            $guestPlayer->is_ready = 0;
+            $guestPlayer->save();
+        }
+
+        #游戏结束 修改日志状态
+        $history = History::find()->where(['room_id'=>$room->id,'status'=>History::STATUS_PLAYING])->one();
+        if($history){
+            $history->status = History::STATUS_END;
+            $history->save();
+        }
+
+        #清除主客玩家的房间缓存
+        MyRoomCache::clear($hostPlayer->user_id);
+        MyRoomCache::clear($guestPlayer->user_id);
     }
 
     /**

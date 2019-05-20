@@ -35,36 +35,10 @@ class Game extends ActiveRecord
     const STATUS_PLAYING = 1;
     const STATUS_END = 2;
 
-//    const EXCEPTION_NOT_IN_ROOM_CODE  = 20001;
-//    const EXCEPTION_NOT_IN_ROOM_MSG   = '在判断是否在进行游戏时，发现玩家根本不在房间中';
-//    const EXCEPTION_WRONG_CHANCE_NUM_CODE  = 20002;
-//    const EXCEPTION_WRONG_CHANCE_NUM_MSG   = '机会数错误';
-//    const EXCEPTION_WRONG_CUE_NUM_CODE  = 20003;
-//    const EXCEPTION_WRONG_CUE_NUM_MSG   = '提示数错误';
-//    const EXCEPTION_NOT_IN_GAME_HAS_CARD_CODE  = 20004;
-//    const EXCEPTION_NOT_IN_GAME_HAS_CARD_MSG   = '不在游戏中，但是有卡牌存在';
-//    const EXCEPTION_WRONG_CARD_NUM_ALL_CODE  = 20005;
-//    const EXCEPTION_WRONG_CARD_NUM_ALL_MSG   = '游戏中，但是总卡牌数不对';
-//    const EXCEPTION_GUEST_PLAYER_NOT_READY_CODE  = 20006;
-//    const EXCEPTION_GUEST_PLAYER_NOT_READY_MSG   = '游戏中，但是客机玩家没有准备';
-//    const EXCEPTION_WRONG_PLAYERS_CODE  = 20007;
-//    const EXCEPTION_WRONG_PLAYERS_MSG   = '游戏中，玩家信息错误';
-//    const EXCEPTION_START_GAME_HAS_STARTED_CODE  = 20008;
-//    const EXCEPTION_START_GAME_HAS_STARTED_MSG   = '开始游戏操作，但是游戏已经开始了';
-//    const EXCEPTION_START_GAME_WRONG_PLAYERS_CODE  = 20009;
-//    const EXCEPTION_START_GAME_WRONG_PLAYERS_MSG   = '开始游戏操作，房间内游戏玩家信息错误';
-//    const EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_CODE  = 20010;
-//    const EXCEPTION_START_GAME_GUEST_PLAYER_NOT_READY_MSG   = '开始游戏操作，客机玩家没有准备';
-    const EXCEPTION_START_GAME_WRONG_ROOM_CODE  = 20011;
-    const EXCEPTION_START_GAME_WRONG_ROOM_MSG   = '开始游戏操作，房间不存在';
-    const EXCEPTION_CREATE_GAME_FAILURE_CODE  = 20012;
-    const EXCEPTION_CREATE_GAME_FAILURE_MSG   = '开始游戏操作，创建失败';
-    const EXCEPTION_CREATE_HISTORY_FAILURE_CODE  = 20013;
-    const EXCEPTION_CREATE_HISTORY_FAILURE_MSG   = '开始游戏操作，创建游戏记录失败';
-    const EXCEPTION_END_GAME_HAS_NO_GAME_CODE  = 20014;
-    const EXCEPTION_END_GAME_HAS_NO_GAME_MSG   = '结束游戏操作，但是游戏不存在';
-    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE  = 20015;
-    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG   = '结束游戏操作，操作玩家不是主机玩家';
+//    const EXCEPTION_END_GAME_HAS_NO_GAME_CODE  = 20014;
+//    const EXCEPTION_END_GAME_HAS_NO_GAME_MSG   = '结束游戏操作，但是游戏不存在';
+//    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE  = 20015;
+//    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG   = '结束游戏操作，操作玩家不是主机玩家';
     const EXCEPTION_DISCARD_NOT_IN_GAME_CODE  = 20016;
     const EXCEPTION_DISCARD_NOT_IN_GAME_MSG   = '弃牌操作，不在游戏中';
     const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE  = 20017;
@@ -197,55 +171,8 @@ class Game extends ActiveRecord
         }
     }
 
-    public static function createOne($roomId){
-        $room =  Room::getOne($roomId);
-        $hostPlayer = $room->hostPlayer;
-        $guestPlayer = $room->guestPlayer;
-        if(!$room){
-            throw new \Exception(Game::EXCEPTION_START_GAME_WRONG_ROOM_MSG,Game::EXCEPTION_START_GAME_WRONG_ROOM_CODE);
-        }
-        $game = new Game();
-        $game->room_id = $room->id;
-        $game->round_num = 1;
-        $game->round_player_is_host = rand(0,1); //随机选择一个玩家开始第一个回合
-        $game->cue_num = Game::DEFAULT_CUE;
-        $game->chance_num = Game::DEFAULT_CHANCE;
-        $game->status = Game::STATUS_PLAYING;
-        $game->score = 0;
-        if($game->save()){
-            GameCard::initLibrary($roomId);
-            for($i=0;$i<5;$i++){ //主机/客机玩家 各模五张牌
-                GameCard::drawCard($roomId,true);
-                GameCard::drawCard($roomId,false);
-            }
-            #创建游戏History
-            $history = new History();
-            $history->room_id = $room->id;
-            $history->status = History::STATUS_PLAYING;
-            $history->score = 0;
-            if($history->save()){
-                $historyPlayer = new HistoryPlayer();
-                $historyPlayer->history_id = $history->id;
-                $historyPlayer->user_id = $hostPlayer->user_id;
-                $historyPlayer->is_host = 1;
-                $historyPlayer->save();
-                $historyPlayer = new HistoryPlayer();
-                $historyPlayer->history_id = $history->id;
-                $historyPlayer->user_id = $guestPlayer->user_id;
-                $historyPlayer->is_host = 0;
-                $historyPlayer->save();
-            }else{
-                throw new \Exception(Game::EXCEPTION_CREATE_HISTORY_FAILURE_MSG,Game::EXCEPTION_CREATE_HISTORY_FAILURE_CODE);
-            }
-        }else{
-            throw new \Exception(Game::EXCEPTION_CREATE_GAME_FAILURE_MSG,Game::EXCEPTION_CREATE_GAME_FAILURE_CODE);
-        }
-
-        MyRoomCache::clear($hostPlayer->user_id);
-        MyRoomCache::clear($guestPlayer->user_id);
-    }
-
     public static function deleteOne($roomId){
+
         $room = Room::getOne($roomId);
         $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
@@ -333,9 +260,9 @@ class Game extends ActiveRecord
                 }
 
 
-                $libraryCardCount = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->count();
+                $libraryCardCount = (int) GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->count();
                 $tableCard = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_SUCCEEDED])->orderBy('type_ord asc')->all();
-                $discardCardCount = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_DISCARDED])->orderBy('type_ord asc')->count();
+                $discardCardCount = (int) GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_DISCARDED])->orderBy('type_ord asc')->count();
 
 
                 $table_cards = [0,0,0,0,0];
@@ -353,7 +280,7 @@ class Game extends ActiveRecord
 
                 $data['cueNum'] = $game->cue_num;
                 $data['chanceNum'] = $game->chance_num;
-                $data['score'] = $game->score;
+                $data['score'] = (int) $game->score;
             }else{
                 //TODO
             }
