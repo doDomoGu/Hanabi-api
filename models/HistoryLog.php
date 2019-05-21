@@ -72,6 +72,46 @@ class HistoryLog extends \yii\db\ActiveRecord
     }
 
 
+    public static function record($roomId, $logType, $params){
+        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
+        if($history){
+
+            if($logType == 'discard'){
+                list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId, $params['cardOrd']);
+                if($get_content_success){
+                    $historyLog = new HistoryLog();
+                    $historyLog->history_id = $history->id;
+                    $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
+                    $historyLog->content_param = $content_param;
+                    $historyLog->content = $content;
+                    $historyLog->save();
+                }
+            } else if($logType == 'play') {
+                list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($roomId,$params['cardOrd'],$params['playSuccess']);
+                if($get_content_success){
+                    $historyLog = new HistoryLog();
+                    $historyLog->history_id = $history->id;
+                    $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
+                    $historyLog->content_param = $content_param;
+                    $historyLog->content = $content;
+                    $historyLog->save();
+                }
+            } else if($logType == 'cue') {
+                list($get_content_success,$content_param,$content) = HistoryLog::getContentByCue($roomId, $params['cardOrd'], $params['cueType'], $params['cueCardsOrd']);
+                if($get_content_success){
+                    $historyLog = new HistoryLog();
+                    $historyLog->history_id = $history->id;
+                    $historyLog->type = HistoryLog::TYPE_CUE_CARD;
+                    $historyLog->content_param = $content_param;
+                    $historyLog->content = $content;
+                    $historyLog->save();
+                    //var_dump($historyLog->errors);exit;
+                }
+            }
+        }
+    }
+
+
     public static function getContentByDiscard($room_id,$card_ord){
         $success = false;
         $content_param = '';
@@ -168,7 +208,7 @@ class HistoryLog extends \yii\db\ActiveRecord
         if($game){
             $player_is_host = $game->round_player_is_host;
             $round_num = $game->round_num;
-            $card = GameCard::find()->where(['room_id'=>$room_id,'type_ord'=>$card_ord])->one();
+            $card = GameCard::find()->where(['room_id'=>$room_id,'ord'=>$card_ord])->one();
             if($card){
 
                 $player = User::find()->where(['id'=>Yii::$app->user->id])->one();
@@ -183,6 +223,7 @@ class HistoryLog extends \yii\db\ActiveRecord
                     'card_color'=>$card->color,
                     'card_num'=>$card->num,
                     'player_name'=>$player->nickname,
+                    'cue_num'=>$game->cue_num,
                     'cards_ord_str'=>$cards_ord_str
                 ];
                 $template = '';
@@ -193,6 +234,7 @@ class HistoryLog extends \yii\db\ActiveRecord
                 }elseif($cue_type == 'num'){
                     $template = '回合[round_num]:[player_name]提示了第[cards_ord_str]张是[card_num]';
                 }
+                $template .= ',消耗一次提示[剩余提示次数:[cue_num]次]';
 
 
                 $param = array_merge(

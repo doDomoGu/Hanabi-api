@@ -176,6 +176,50 @@ class GameCard extends ActiveRecord
         }
     }
 
+    /*
+     * 成功打出一张牌
+     *
+     */
+    public static function success($roomId, $ord){
+        $card = self::getOneByOrd($roomId, $ord);
+        $card->type = GameCard::TYPE_SUCCEEDED;
+        $card->type_ord = GameCard::getInsertSucceededOrd($roomId);
+        if(!$card->save()){
+            GameCardException::t('do_success_failure');
+        }
+    }
+
+    /*
+     * 找出需要提示的卡牌排序列表
+     * 参数： roomId
+     *       card : 所选择的卡牌 card->type card->color card->num
+     *       cueType: 提示类型  color / num
+     */
+    public static function cue($roomId, $card, $cueType) {
+        if($cueType=='color'){
+            #获取手牌中颜色一样的牌
+            $cardCueList = GameCard::find()->where(['room_id'=>$roomId,'type'=>$card->type,'color'=>$card->color])->orderby('type_ord asc')->all();
+
+        }elseif($cueType=='num'){
+            #获取手牌中数字一样的牌
+            $cardCueList = GameCard::find()->where(['room_id'=>$roomId,'type'=>$card->type])->andWhere(['in','num',Card::$numbers_reverse[Card::$numbers[$card->num]]])->orderby('type_ord asc')->all();
+        }else{
+            //TODO
+            throw new \Exception('错误的提示类型',88888);
+        }
+        $cueCardsOrd = [];
+
+        foreach($cardCueList as $c){
+            $cueCardsOrd[] = $c->type_ord;
+        }
+
+        if(empty($cueCardsOrd)){
+            //TODO
+            throw new \Exception('提示卡牌列表为空',88882);
+        }
+
+        return $cueCardsOrd;
+    }
 
     //摸一张牌
     public static function drawCard($roomId, $isHost){

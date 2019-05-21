@@ -324,76 +324,7 @@ class Game extends ActiveRecord
     }
 
     public static function cueCard($roomId, $typeOrd, $cueType) {
-        $room = Room::getOne($roomId);
-        $hostPlayer = $room->hostPlayer;
-        $guestPlayer = $room->guestPlayer;
-        $isHost = $hostPlayer->user_id == Yii::$app->user->id;  //操作玩家是否是主机玩家
 
-        $game = Game::getOne($roomId);
-        $roundPlayerIsHost = $game->round_player_is_host == 1; // 当前回合玩家是不是主机玩家
-
-        if($roundPlayerIsHost != $isHost){ // 判断是不是当前玩家操作的回合
-            throw new \Exception(Game::EXCEPTION_CUE_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_CUE_NOT_PLAYER_ROUND_CODE);
-        }
-
-        #根据isHost，选择GameCard的type
-        $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
-
-        #验证排序符合 $handsTypeOrds
-        if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
-            throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
-        }
-
-        #找到所选择的牌
-        $cardSelected = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType,'type_ord'=>$typeOrd])->one();
-        if(!$cardSelected){
-            throw new \Exception(GameCard::EXCEPTION_NOT_FOUND_HANDS_MSG,GameCard::EXCEPTION_NOT_FOUND_HANDS_CODE);
-        }
-
-        if($cueType=='color'){
-            #获取手牌中颜色一样的牌
-            $cardCueList = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType,'color'=>$cardSelected->color])->orderby('type_ord asc')->all();
-
-        }elseif($cueType=='num'){
-            #获取手牌中数字一样的牌
-            $cardCueList = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType])->andWhere(['in','num',Card::$numbers_reverse[Card::$numbers[$cardSelected->num]]])->orderby('type_ord asc')->all();
-        }else{
-            throw new \Exception('错误的提示类型',88888);
-        }
-        $cueCardsOrd = [];
-
-        foreach($cardCueList as $c){
-            $cueCardsOrd[] = $c->type_ord;
-        }
-        
-        if(empty($cueCardsOrd)){
-            throw new \Exception('提示卡牌列表为空',88882);
-        }
-        
-        //插入日志 record
-        //TODO
-        $history = History::find()->where(['room_id'=>$game->room_id,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            list($get_content_success,$content_param,$content) = HistoryLog::getContentByCue($roomId, $typeOrd, $cueType, $cueCardsOrd);
-            if($get_content_success){
-                $historyLog = new HistoryLog();
-                $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_CUE_CARD;
-                $historyLog->content_param = $content_param;
-                $historyLog->content = $content;
-                $historyLog->save();
-                //var_dump($historyLog->errors);exit;
-            }
-        }
-
-        //消耗一个提示数
-        Game::useCue($game->room_id);
-
-        //交换(下一个)回合
-        Game::changeRoundPlayer($game->room_id);
-
-        MyGameCache::clear($hostPlayer->user_id);
-        MyGameCache::clear($guestPlayer->user_id);
 
     }
 
@@ -422,19 +353,16 @@ class Game extends ActiveRecord
         return false;
     }
 
-    public static function useChance($room_id){
-        $game = Game::find()->where(['room_id'=>$room_id])->one();
-        if($game){
-            if($game->chance_num > 0){
-                $game->chance_num = $game->chance_num - 1;
-                if($game->save())
-                    return [true, (int) $game->chance_num];
-            }else{
-                throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
-            }
+    public static function useChance($roomId){
+        $game = Game::getOne($roomId);
+        if($game->chance_num > 0){
+            $game->chance_num = $game->chance_num - 1;
+            if($game->save())
+                return [true, (int) $game->chance_num];
         }else{
-            throw new \Exception(Game::EXCEPTION_NOT_FOUND_GAME_MSG,Game::EXCEPTION_NOT_FOUND_GAME_CODE);
+            // TODO 机会数用完
         }
+
         return [false, -1];
     }
 
