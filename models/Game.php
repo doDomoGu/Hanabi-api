@@ -35,14 +35,6 @@ class Game extends ActiveRecord
     const STATUS_PLAYING = 1;
     const STATUS_END = 2;
 
-//    const EXCEPTION_END_GAME_HAS_NO_GAME_CODE  = 20014;
-//    const EXCEPTION_END_GAME_HAS_NO_GAME_MSG   = '结束游戏操作，但是游戏不存在';
-//    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_CODE  = 20015;
-//    const EXCEPTION_END_GAME_NOT_HOST_PLAYER_MSG   = '结束游戏操作，操作玩家不是主机玩家';
-    const EXCEPTION_DISCARD_NOT_IN_GAME_CODE  = 20016;
-    const EXCEPTION_DISCARD_NOT_IN_GAME_MSG   = '弃牌操作，不在游戏中';
-    const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE  = 20017;
-    const EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG   = '弃牌操作，不是该玩家的回合';
     const EXCEPTION_START_GAME_NOT_HOST_PLAYER_CODE  = 20018;
     const EXCEPTION_START_GAME_NOT_HOST_PLAYER_MSG   = '开始游戏操作，操作人不是主机玩家';
     const EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE  = 20019;
@@ -316,105 +308,7 @@ class Game extends ActiveRecord
      */
 
     public static function playCard($roomId, $typeOrd){
-        $game = Game::getOne($roomId);
-        $room = Room::getOne($roomId);
-        $hostPlayer = $room->hostPlayer;
-        $guestPlayer = $room->guestPlayer;
-        $isHost = $hostPlayer->user_id == Yii::$app->user->id;
 
-        # 游戏不存在
-        if(!$game){
-            throw new \Exception(GameCard::EXCEPTION_NOT_IN_GAME_MSG,GameCard::EXCEPTION_NOT_IN_GAME_CODE);
-        }
-        # 不是当前玩家操作的回合
-        if($game->round_player_is_host != $isHost){
-            throw new \Exception(Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_PLAY_NOT_PLAYER_ROUND_CODE);
-        }
-
-
-        # 手牌排序参数错误
-        if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
-            throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
-        }
-
-        #根据isHost，选择GameCard的type
-        $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
-
-        #找到所选择的牌
-        $cardSelected = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType,'type_ord'=>$typeOrd])->one();
-        if(!$cardSelected){
-            throw new \Exception(GameCard::EXCEPTION_NOT_FOUND_HANDS_MSG,GameCard::EXCEPTION_NOT_FOUND_HANDS_CODE);
-        }
-
-        $cardsSuccessTop = GameCard::getCardsSuccessTop($roomId);
-
-        $colorTopNum = $cardsSuccessTop[$cardSelected->color];  //对应花色的目前成功的最大数值
-        $num = Card::$numbers[$cardSelected->num];              //选中牌的数值
-        if($colorTopNum + 1 == $num){
-            #出牌成功
-            $cardSelected->type = GameCard::TYPE_SUCCEEDED;
-            $cardSelected->type_ord = GameCard::getInsertSucceededOrd($roomId);
-            $cardSelected->save();
-            $playSuccess = true;
-        }else{
-            #出牌失败
-            $cardSelected->type = GameCard::TYPE_DISCARDED;
-            $cardSelected->type_ord = GameCard::getInsertDiscardOrd($roomId);
-            $cardSelected->save();
-            $playSuccess = false;
-        }
-
-
-        if($playSuccess){
-            $game->score +=1;
-            $game->save();
-
-            //恢复一个提示数
-            Game::recoverCue($roomId);
-            $result = true;
-        }else{
-            //消耗一次机会
-            list($result, $chance_num) = Game::useChance($roomId);
-            if($result){
-                if($chance_num === 0) {
-                    # 失败机会次数耗尽  结束游戏
-                    Game::end();
-                }
-            }else{
-
-                //TODO  使用机会失败
-            }
-        }
-
-        $cardOrd = $cardSelected->ord;
-        GameCard::moveHandCardsByLackOfCard($roomId, $isHost, $typeOrd);
-
-
-        //给这个玩家摸一张牌
-        GameCard::drawCard($roomId,$isHost);
-
-
-        //插入日志 record
-        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($roomId,$cardOrd,$result);
-            if($get_content_success){
-                $historyLog = new HistoryLog();
-                $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
-                $historyLog->content_param = $content_param;
-                $historyLog->content = $content;
-                $historyLog->save();
-                //var_dump($historyLog->errors);exit;
-            }
-        }
-
-
-        //交换(下一个)回合
-        Game::changeRoundPlayer($roomId);
-
-        MyGameCache::clear($hostPlayer->user_id);
-        MyGameCache::clear($guestPlayer->user_id);
 
     }
 
@@ -425,70 +319,7 @@ class Game extends ActiveRecord
 
 
     public static function discardCard($roomId, $typeOrd){
-        $room = Room::getOne($roomId);
-        $hostPlayer = $room->hostPlayer;
-        $guestPlayer = $room->guestPlayer;
-        $isHost = $hostPlayer->user_id == Yii::$app->user->id;  //操作玩家是否是主机玩家
 
-        $game = Game::getOne($roomId);
-        $roundPlayerIsHost = $game->round_player_is_host == 1; // 当前回合玩家是不是主机玩家
-
-        if($roundPlayerIsHost != $isHost){ // 判断是不是当前玩家操作的回合
-            throw new \Exception(Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_MSG,Game::EXCEPTION_DISCARD_NOT_PLAYER_ROUND_CODE);
-        }
-
-        #根据isHost，选择GameCard的type
-        $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
-
-        #验证排序符合 $handsTypeOrds
-        if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
-            throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
-        }
-
-        #找到所选择的牌
-        $cardSelected = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType,'type_ord'=>$typeOrd])->one();
-        if(!$cardSelected){
-            throw new \Exception(GameCard::EXCEPTION_NOT_FOUND_HANDS_MSG,GameCard::EXCEPTION_NOT_FOUND_HANDS_CODE);
-        }
-
-        #卡牌固定排序（唯一不变）
-        $cardOrd = $cardSelected->ord;
-
-        #将牌丢进弃牌堆
-        $cardSelected->type = GameCard::TYPE_DISCARDED;
-        $cardSelected->type_ord = GameCard::getInsertDiscardOrd($roomId);
-        if(!$cardSelected->save()){
-            throw new \Exception(GameCard::EXCEPTION_DISCARD_FAILURE_MSG,GameCard::EXCEPTION_DISCARD_FAILURE_CODE);
-        }
-
-        #牌序移动
-        GameCard::moveHandCardsByLackOfCard($roomId, $isHost, $typeOrd);
-
-        #摸牌
-        GameCard::drawCard($roomId, $isHost);
-
-
-        //恢复一个提示数
-        Game::recoverCue($roomId);
-        //插入日志 record
-        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId,$cardOrd);
-            if($get_content_success){
-                $historyLog = new HistoryLog();
-                $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
-                $historyLog->content_param = $content_param;
-                $historyLog->content = $content;
-                $historyLog->save();
-                //var_dump($historyLog->errors);exit;
-            }
-        }
-        //交换(下一个)回合
-        Game::changeRoundPlayer($roomId);
-
-        MyGameCache::clear($hostPlayer->user_id);
-        MyGameCache::clear($guestPlayer->user_id);
 
     }
 

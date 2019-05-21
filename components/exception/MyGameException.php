@@ -48,24 +48,25 @@ class MyGameException extends MyException {
             'msg' => '结束游戏操作时，不在房间中',
             'code' => 50011
         ],
-        'do_end_game_not_playing' => [
-            'msg' => '结束游戏操作时，游戏未游玩中',
+        'do_end_not_in_game' => [
+            'msg' => '结束游戏操作时，不在游戏中',
             'code' => 50012
         ],
         'do_end_not_host_player' => [
             'msg' => '结束游戏操作时，操作人不是主机玩家',
             'code' => 50013
         ],
-
-        'do_end_not_host_player' => [
-            'msg' => '结束游戏操作时，操作人不是主机玩家',
-            'code' => 50013
+        'do_operation_not_in_room' => [
+            'msg' => '卡牌操作时，不在房间中',
+            'code' => 50014
         ],
-
-
-        'do_end_not_host_player' => [
-            'msg' => '结束游戏操作时，操作人不是主机玩家',
-            'code' => 50013
+        'do_operation_not_in_game' => [
+            'msg' => '卡牌操作时，不在游戏中',
+            'code' => 50015
+        ],
+        'do_operation_not_player_round' => [
+            'msg' => '卡牌操作时，不是该玩家操作的回合',
+            'code' => 50015
         ],
     ];
 

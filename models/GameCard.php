@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\components\exception\GameCardException;
 use app\components\exception\MyGameException;
 use Yii;
 use yii\behaviors\TimestampBehavior;
@@ -27,8 +28,8 @@ class GameCard extends ActiveRecord
     const TYPE_SUCCEEDED    = 4; #成功打出（燃放）的牌  牌序为 0~N 按照打出的顺序"从小到大"
     const TYPE_DISCARDED    = 5; #弃掉的和打出失败的卡牌  牌序为 0~N 按照弃掉和打出的顺序"从小到大"
 
-    const EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE  = 30001;
-    const EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG   = '错误的手牌牌序';
+//    const EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE  = 30001;
+//    const EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG   = '错误的手牌牌序';
     const EXCEPTION_NOT_FOUND_HANDS_CODE  = 30002;
     const EXCEPTION_NOT_FOUND_HANDS_MSG   = '没有找到对应的手牌';
     const EXCEPTION_DISCARD_FAILURE_CODE  = 30003;
@@ -133,6 +134,49 @@ class GameCard extends ActiveRecord
 
     }
 
+    /*
+     * 根据roomId, type, type_ord 找到 对应卡牌
+     */
+
+    public static function getOne($roomId, $type, $typeOrd){
+        if(in_array($type, [self::TYPE_HOST_HANDS, self::TYPE_GUEST_HANDS])){
+            #验证排序符合 $handsTypeOrds
+            if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
+                GameCardException::t('wrong_hands_type_ord');
+            }
+        }
+
+        $card = GameCard::find()->where(['room_id'=>$roomId,'type'=>$type,'type_ord'=>$typeOrd])->one();
+        if(!$card){
+            GameCardException::t('not_found');
+        }
+
+        return $card;
+    }
+
+    public static function getOneByOrd($roomId, $ord){
+        $card = GameCard::find()->where(['room_id' => $roomId, 'ord' => $ord])->one();
+        if (!$card) {
+            GameCardException::t('not_found');
+        }
+        return $card;
+    }
+
+    /*
+     * 弃掉一张牌
+     * 参数 roomId, ord
+     *
+     */
+    public static function discard($roomId, $ord){
+        $card = self::getOneByOrd($roomId, $ord);
+        $card->type = GameCard::TYPE_DISCARDED;
+        $card->type_ord = GameCard::getInsertDiscardOrd($roomId);
+        if(!$card->save()){
+            GameCardException::t('do_discard_failure');
+        }
+    }
+
+
     //摸一张牌
     public static function drawCard($roomId, $isHost){
 
@@ -140,7 +184,7 @@ class GameCard extends ActiveRecord
         $card = GameCard::find()->where(['room_id'=>$roomId,'type'=>GameCard::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->one();
 
         if(!$card){
-            throw new \Exception(GameCard::EXCEPTION_DRAW_CARD_NO_CARD_MSG, GameCard::EXCEPTION_DRAW_CARD_NO_CARD_CODE);
+            GameCardException::t('draw_card_library_empty');
         }
 
         $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
@@ -149,7 +193,7 @@ class GameCard extends ActiveRecord
         $player_card_count = GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType])->count();
 
         if($player_card_count > 4) {
-            throw new \Exception(GameCard::EXCEPTION_DRAW_CARD_HANDS_OVER_LIMIT_MSG, GameCard::EXCEPTION_DRAW_CARD_HANDS_OVER_LIMIT_CODE);
+            GameCardException::t('draw_card_hands_over_limit');
         }
 
         //查找玩家手上排序最大的牌，确定摸牌的序号 type_ord
@@ -254,7 +298,7 @@ class GameCard extends ActiveRecord
         $cardType = $isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
 
         if(!in_array($typeOrd, GameCard::$handsTypeOrds)) {
-            throw new \Exception(GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_MSG,GameCard::EXCEPTION_WRONG_HANDS_TYPE_ORD_CODE);
+            GameCardException::t('wrong_hands_type_ord');
         }
 
         //将排序靠后的手牌都往前移动
