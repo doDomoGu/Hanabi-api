@@ -216,24 +216,26 @@ class MyGameController extends MyActiveController
     }
 
     /*
-     * 玩家操作后的验证
+     * 玩家操作后的验证, 不通过要进入结束游戏流程
      */
     private function checkDone(){
-//        $room = Room::getOne($this->roomId, false);
         $game = Game::getOne($this->roomId, false);
 
-//        $hostPlayer = $room->hostPlayer;
-//        $guestPlayer = $room->guestPlayer;
-
+        # 剩余机会数 为 0
         if($game->chance_num == 0) {
             return false;
         }
 
+        # 总分已达到 25分
         if($game->score == 25) {
             return false;
         }
 
-        //TODO 其他检查
+        # 双方都无手牌
+        $handsCount = (int) GameCard::find()->where(['room_id'=>$this->roomId, 'type'=>[GameCard::TYPE_HOST_HANDS, GameCard::TYPE_GUEST_HANDS]])->count();
+        if($handsCount == 0) {
+            return false;
+        }
 
         return true;
     }
@@ -327,9 +329,6 @@ class MyGameController extends MyActiveController
         # 所选卡牌的数字值
         $num = Card::$numbers[$card->num];
 
-        # 游戏结束标志
-        $gameEndFlag = false;
-
         # 所选数字 = 最大数字 + 1 即打出成功
         if($colorTopNum + 1 == $num){
             # 出牌成功 置入桌面上
@@ -349,19 +348,15 @@ class MyGameController extends MyActiveController
             # 消耗一次机会
             Game::useChance($this->roomId);
 
-            # 检查剩余机会数  如果等于0，结束游戏
-
-            $chance_num = Game::getOne($this->roomId, false)->chance_num;
-
-            if($chance_num === 0) {
-                Game::deleteOne($this->roomId);
-                $gameEndFlag = true;
-            }
-
             $playSuccess = false;
         }
 
-        if(!$gameEndFlag){
+        # 记录日志
+        HistoryLog::record($this->roomId, 'play', ['cardOrd'=>$card->ord, 'playSuccess'=>$playSuccess]);
+
+
+        # 操作后的检查
+        if($this->checkDone()){
             # 由于打出一张牌，将剩余的手牌做牌序移动
             GameCard::moveHandCardsByLackOfCard($this->roomId, $this->isHost, $typeOrd);
 
@@ -370,11 +365,13 @@ class MyGameController extends MyActiveController
 
             # 进入下一个回合
             Game::nextRound($this->roomId);
+        }else{
+            # 不通过则进入结束游戏流程
 
-        # 记录日志
-        HistoryLog::record($this->roomId, 'play', ['cardOrd'=>$card->ord, 'playSuccess'=>$playSuccess]);
+            # 执行结束游戏
+            Game::deleteOne($this->roomId);
 
-        if($gameEndFlag) {
+            # 日志状态修改为结束
             History::deleteOne($this->roomId);
         }
 
