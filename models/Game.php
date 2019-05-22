@@ -358,12 +358,21 @@ class Game extends ActiveRecord
     }
 
     /*
-     * 指定房间的游戏交换玩家回合,且回合数+1
+     * 指定房间的游戏进入下一个回合
      */
-    public static function changeRoundPlayer($roomId){
+    public static function nextRound($roomId){
         $game = self::getOne($roomId);
-        $game->round_player_is_host = $game->round_player_is_host == 1 ? 0 : 1;
+        # 查看对家是否有手牌，有则交换操作玩家
+        $cardType = $game->round_player_is_host == 1 ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
+
+        $handsCount = (int) GameCard::find()->where(['room_id'=>$roomId,'type'=>$cardType])->count();
+
+        if($handsCount > 0) {
+            $game->round_player_is_host = $game->round_player_is_host == 1 ? 0 : 1;
+        }
+
         $game->round_num = $game->round_num + 1;
+
         if(!$game->save()) {
             GameException::t('change_round_player_failure');
         }

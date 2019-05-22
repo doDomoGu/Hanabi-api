@@ -279,8 +279,8 @@ class MyGameController extends MyActiveController
             # 摸牌
             GameCard::drawCard($this->roomId, $this->isHost);
 
-            # 交换(下一个)回合
-            Game::changeRoundPlayer($this->roomId);
+            # 进入下一个回合
+            Game::nextRound($this->roomId);
 
         } else {
             # 不通过则进入结束游戏流程
@@ -368,9 +368,8 @@ class MyGameController extends MyActiveController
             # 摸牌
             GameCard::drawCard($this->roomId, $this->isHost);
 
-            # 交换(下一个)回合
-            Game::changeRoundPlayer($this->roomId);
-        }
+            # 进入下一个回合
+            Game::nextRound($this->roomId);
 
         # 记录日志
         HistoryLog::record($this->roomId, 'play', ['cardOrd'=>$card->ord, 'playSuccess'=>$playSuccess]);
@@ -413,8 +412,8 @@ class MyGameController extends MyActiveController
         # 消耗一个提示数
         Game::useCue($this->roomId);
 
-        # 交换(下一个)回合
-        Game::changeRoundPlayer($this->roomId);
+        # 进入下一个回合
+        Game::nextRound($this->roomId);
 
         # 记录日志
         HistoryLog::record($this->roomId, 'cue', ['cardOrd'=>$card->ord, 'cueType'=>$cueType, 'cueCardsOrd'=>$cueCardsOrd ]);
