@@ -195,13 +195,6 @@ class Game extends ActiveRecord
             $guestPlayer->save();
         }
 
-        #游戏结束 修改日志状态
-        $history = History::find()->where(['room_id'=>$room->id,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            $history->status = History::STATUS_END;
-            $history->save();
-        }
-
     }
 
     public static function getCardInfo($roomId){

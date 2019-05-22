@@ -121,7 +121,7 @@ class MyGameController extends MyActiveController
         # 执行结束游戏
         Game::deleteOne($this->roomId);
 
-        # 日志状态修改
+        # 日志状态修改为结束
         History::deleteOne($this->roomId);
 
         #清除主客玩家的房间缓存
@@ -213,7 +213,29 @@ class MyGameController extends MyActiveController
         $this->guestPlayer = $room->guestPlayer;
 
         $this->game = $game;
+    }
 
+    /*
+     * 玩家操作后的验证
+     */
+    private function checkDone(){
+//        $room = Room::getOne($this->roomId, false);
+        $game = Game::getOne($this->roomId, false);
+
+//        $hostPlayer = $room->hostPlayer;
+//        $guestPlayer = $room->guestPlayer;
+
+        if($game->chance_num == 0) {
+            return false;
+        }
+
+        if($game->score == 25) {
+            return false;
+        }
+
+        //TODO 其他检查
+
+        return true;
     }
 
     /**
@@ -241,20 +263,34 @@ class MyGameController extends MyActiveController
         # 将牌移入弃牌堆
         GameCard::discard($this->roomId, $card->ord);
 
-        # 恢复一个提示数
-        Game::recoverCue($this->roomId);
-
-        # 由于打出一张牌，将剩余的手牌做牌序移动
-        GameCard::moveHandCardsByLackOfCard($this->roomId, $this->isHost, $typeOrd);
-
-        # 摸牌
-        GameCard::drawCard($this->roomId, $this->isHost);
-
-        # 交换(下一个)回合
-        Game::changeRoundPlayer($this->roomId);
-
-        # 记录日志
+        # 记录操作日志
         HistoryLog::record($this->roomId, 'discard', ['cardOrd'=>$card->ord]);
+
+        # 操作后的检查
+        if($this->checkDone()){
+            # 通过则进入结算流程
+
+            # 恢复一个提示数
+            Game::recoverCue($this->roomId);
+
+            # 由于打出一张牌，将剩余的手牌做牌序移动
+            GameCard::moveHandCardsByLackOfCard($this->roomId, $this->isHost, $typeOrd);
+
+            # 摸牌
+            GameCard::drawCard($this->roomId, $this->isHost);
+
+            # 交换(下一个)回合
+            Game::changeRoundPlayer($this->roomId);
+
+        } else {
+            # 不通过则进入结束游戏流程
+
+            # 执行结束游戏
+            Game::deleteOne($this->roomId);
+
+            # 日志状态修改为结束
+            History::deleteOne($this->roomId);
+        }
 
         MyGameCache::clear($this->hostPlayer->user_id);
         MyGameCache::clear($this->guestPlayer->user_id);
@@ -338,6 +374,10 @@ class MyGameController extends MyActiveController
 
         # 记录日志
         HistoryLog::record($this->roomId, 'play', ['cardOrd'=>$card->ord, 'playSuccess'=>$playSuccess]);
+
+        if($gameEndFlag) {
+            History::deleteOne($this->roomId);
+        }
 
         MyGameCache::clear($this->hostPlayer->user_id);
         MyGameCache::clear($this->guestPlayer->user_id);
