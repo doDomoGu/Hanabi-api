@@ -79,44 +79,19 @@ class MyGameController extends MyActiveController
         }
 
         # 开始创建游戏
-        $game = new Game();
-        $game->room_id = $roomId;
-        $game->round_num = 1; //当前回合数 1
-        $game->round_player_is_host = rand(0,1); //随机选择一个玩家开始第一个回合
-        $game->cue_num = Game::DEFAULT_CUE; //剩余提示数
-        $game->chance_num = Game::DEFAULT_CHANCE; //剩余机会数
-        $game->status = Game::STATUS_PLAYING;  //TODO 暂时无用因为永远是1 PLAYING
-        $game->score = 0; //当前分数
-        if($game->save()){
-            //初始化牌库
-            GameCard::initLibrary($roomId);
-            //主机/客机玩家 各模五张牌
-            for($i=0;$i<5;$i++){
-                GameCard::drawCard($roomId,true);
-                GameCard::drawCard($roomId,false);
-            }
-            #创建游戏History
-            $history = new History();
-            $history->room_id = $room->id;
-            $history->status = History::STATUS_PLAYING;
-            $history->score = 0;
-            if ($history->save()) {
-                $historyPlayer = new HistoryPlayer();
-                $historyPlayer->history_id = $history->id;
-                $historyPlayer->user_id = $hostPlayer->user_id;
-                $historyPlayer->is_host = 1;
-                $historyPlayer->save();
-                $historyPlayer = new HistoryPlayer();
-                $historyPlayer->history_id = $history->id;
-                $historyPlayer->user_id = $guestPlayer->user_id;
-                $historyPlayer->is_host = 0;
-                $historyPlayer->save();
-            } else {
-                MyGameException::t('do_start_create_game_history_failure');
-            }
-        }else{
-            MyGameException::t('do_start_create_game_failure');
+        Game::createOne($roomId);
+
+        # 初始化牌库
+        GameCard::initLibrary($roomId);
+
+        # 主机/客机玩家 各模五张牌
+        for($i = 0; $i < 5; $i++){
+            GameCard::drawCard($roomId,true);
+            GameCard::drawCard($roomId,false);
         }
+
+        # 创建游戏History
+        History::createOne($roomId);
 
         MyRoomCache::clear($hostPlayer->user_id);
         MyRoomCache::clear($guestPlayer->user_id);
@@ -134,46 +109,24 @@ class MyGameController extends MyActiveController
      */
 
     public function actionEnd(){
-        list($isInRoom, $roomId) = MyRoom::isIn();
-        #不在房间中 抛出异常
-        if(!$isInRoom) {
-            MyGameException::t('do_end_not_in_room');
-        }
-        # 游戏未开始
-        if(!Game::isPlaying($roomId)) {
-            MyGameException::t('do_end_not_in_game`');
-        }
-
-        $room = Room::getOne($roomId);
-        $hostPlayer = $room->hostPlayer;
-        $guestPlayer = $room->guestPlayer;
+        # 操作前的检查
+        $this->checkDo();
 
         // TODO 暂时主机玩家可以强制结束游戏
         # 操作人不是主机玩家
-        if($hostPlayer->user_id != Yii::$app->user->id){
+        if($this->hostPlayer->user_id != Yii::$app->user->id){
             MyGameException::t('do_end_not_host_player');
         }
 
-        # 删除游戏数据
-        Game::deleteAll(['room_id'=>$roomId]);
-        GameCard::deleteAll(['room_id'=>$roomId]);
+        # 执行结束游戏
+        Game::deleteOne($this->roomId);
 
-        # 修改客机玩家状态为"未准备"
-        if($guestPlayer){
-            $guestPlayer->is_ready = 0;
-            $guestPlayer->save();
-        }
-
-        #游戏结束 修改日志状态
-        $history = History::find()->where(['room_id'=>$room->id,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
-            $history->status = History::STATUS_END;
-            $history->save();
-        }
+        # 日志状态修改
+        History::deleteOne($this->roomId);
 
         #清除主客玩家的房间缓存
-        MyRoomCache::clear($hostPlayer->user_id);
-        MyRoomCache::clear($guestPlayer->user_id);
+        MyGameCache::clear($this->hostPlayer->user_id);
+        MyGameCache::clear($this->guestPlayer->user_id);
     }
 
     /**
@@ -297,11 +250,11 @@ class MyGameController extends MyActiveController
         # 摸牌
         GameCard::drawCard($this->roomId, $this->isHost);
 
-        # 记录日志
-        HistoryLog::record($this->roomId, 'discard', ['cardOrd'=>$card->ord]);
-
         # 交换(下一个)回合
         Game::changeRoundPlayer($this->roomId);
+
+        # 记录日志
+        HistoryLog::record($this->roomId, 'discard', ['cardOrd'=>$card->ord]);
 
         MyGameCache::clear($this->hostPlayer->user_id);
         MyGameCache::clear($this->guestPlayer->user_id);
@@ -320,7 +273,7 @@ class MyGameController extends MyActiveController
     public function actionDoPlay(){
         $typeOrd = Yii::$app->request->post('cardSelectOrd');
 
-        # 操作前的检查
+        # 操作前的检查 并初始化
         $this->checkDo();
 
         # 根据isHost，确定类型是主机手牌还是客机手牌
@@ -338,48 +291,53 @@ class MyGameController extends MyActiveController
         # 所选卡牌的数字值
         $num = Card::$numbers[$card->num];
 
+        # 游戏结束标志
+        $gameEndFlag = false;
+
         # 所选数字 = 最大数字 + 1 即打出成功
         if($colorTopNum + 1 == $num){
-            #出牌成功 置入桌面上
+            # 出牌成功 置入桌面上
             GameCard::success($this->roomId, $card->ord);
+
+            # 游戏分数+1
+            Game::addScore($this->roomId);
+
+            # 恢复一个提示数
+            Game::recoverCue($this->roomId);
+
             $playSuccess = true;
         }else{
-            #出牌失败 置入弃牌堆
+            # 出牌失败 置入弃牌堆
             GameCard::discard($this->roomId, $card->ord);
+
+            # 消耗一次机会
+            Game::useChance($this->roomId);
+
+            # 检查剩余机会数  如果等于0，结束游戏
+
+            $chance_num = Game::getOne($this->roomId, false)->chance_num;
+
+            if($chance_num === 0) {
+                Game::deleteOne($this->roomId);
+                $gameEndFlag = true;
+            }
+
             $playSuccess = false;
         }
 
-        if($playSuccess){
-            $this->game->score +=1;
-            $this->game->save();
+        if(!$gameEndFlag){
+            # 由于打出一张牌，将剩余的手牌做牌序移动
+            GameCard::moveHandCardsByLackOfCard($this->roomId, $this->isHost, $typeOrd);
 
-            //恢复一个提示数
-            Game::recoverCue($this->roomId);
-        }else{
-            //消耗一次机会
-            list($result, $chance_num) = Game::useChance($this->roomId);
-            if($result){
-                if($chance_num === 0) {
-                    # TODO 失败机会次数耗尽  结束游戏
-                    Game::end();
-                }
-            }else{
+            # 摸牌
+            GameCard::drawCard($this->roomId, $this->isHost);
 
-                //TODO  使用机会失败
-            }
+            # 交换(下一个)回合
+            Game::changeRoundPlayer($this->roomId);
         }
-
-        # 由于打出一张牌，将剩余的手牌做牌序移动
-        GameCard::moveHandCardsByLackOfCard($this->roomId, $this->isHost, $typeOrd);
-
-        # 摸牌
-        GameCard::drawCard($this->roomId, $this->isHost);
 
         # 记录日志
         HistoryLog::record($this->roomId, 'play', ['cardOrd'=>$card->ord, 'playSuccess'=>$playSuccess]);
-
-        # 交换(下一个)回合
-        Game::changeRoundPlayer($this->roomId);
 
         MyGameCache::clear($this->hostPlayer->user_id);
         MyGameCache::clear($this->guestPlayer->user_id);
@@ -415,11 +373,11 @@ class MyGameController extends MyActiveController
         # 消耗一个提示数
         Game::useCue($this->roomId);
 
-        # 记录日志
-        HistoryLog::record($this->roomId, 'cue', ['cardOrd'=>$card->ord, 'cueType'=>$cueType, 'cueCardsOrd'=>$cueCardsOrd ]);
-
         # 交换(下一个)回合
         Game::changeRoundPlayer($this->roomId);
+
+        # 记录日志
+        HistoryLog::record($this->roomId, 'cue', ['cardOrd'=>$card->ord, 'cueType'=>$cueType, 'cueCardsOrd'=>$cueCardsOrd ]);
 
         MyGameCache::clear($this->hostPlayer->user_id);
         MyGameCache::clear($this->guestPlayer->user_id);

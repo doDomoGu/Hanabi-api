@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\components\exception\HistoryException;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
@@ -69,5 +70,46 @@ class History extends ActiveRecord
             'created_at' => 'Created At',
             'updated_at' => 'Updated At',
         ];
+    }
+
+    public static function createOne($roomId){
+        $room = Room::getOne($roomId);
+
+        $history = new History();
+        $history->room_id = $roomId;
+        $history->status = History::STATUS_PLAYING;
+        $history->score = 0;
+        if (!$history->save()) {
+            HistoryException::t('create_one_failure');
+        }
+
+        $historyPlayer = new HistoryPlayer();
+        $historyPlayer->history_id = $history->id;
+        $historyPlayer->user_id = $room->hostPlayer->user_id;
+        $historyPlayer->is_host = 1;
+        if(!$historyPlayer->save()){
+            HistoryException::t('create_host_history_player_failure');
+        }
+
+        $historyPlayer = new HistoryPlayer();
+        $historyPlayer->history_id = $history->id;
+        $historyPlayer->user_id = $room->guestPlayer->user_id;
+        $historyPlayer->is_host = 0;
+        if(!$historyPlayer->save()){
+            HistoryException::t('create_guest_history_player_failure');
+        }
+
+    }
+
+    public static function deleteOne($roomId){
+        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
+        if($history){
+            $history->status = History::STATUS_END;
+            if (!$history->save()) {
+                HistoryException::t('delete_one_failure');
+            }
+        }else{
+            HistoryException::t('delete_one_failure_not_found');
+        }
     }
 }

@@ -163,10 +163,26 @@ class Game extends ActiveRecord
         }
     }
 
-    public static function deleteOne($roomId){
+    public static function createOne($roomId){
+        $game = new Game();
+        $game->room_id = $roomId;
+        $game->round_num = 1; //当前回合数 1
+        $game->round_player_is_host = rand(0,1); //随机选择一个玩家开始第一个回合
+        $game->cue_num = Game::DEFAULT_CUE; //剩余提示数
+        $game->chance_num = Game::DEFAULT_CHANCE; //剩余机会数
+        $game->status = Game::STATUS_PLAYING;  //TODO 暂时无用因为永远是1 PLAYING
+        $game->score = 0; //当前分数
+        if(!$game->save()){
+            GameException::t('create_game_failure');
+        }
+    }
 
+    /*
+     * 结束游戏
+     */
+
+    public static function deleteOne($roomId){
         $room = Room::getOne($roomId);
-        $hostPlayer = $room->hostPlayer;
         $guestPlayer = $room->guestPlayer;
 
         # 删除游戏数据
@@ -186,99 +202,89 @@ class Game extends ActiveRecord
             $history->save();
         }
 
-        #清除主客玩家的房间缓存  //TODO
-        MyRoomCache::clear($hostPlayer->user_id);
-        MyRoomCache::clear($guestPlayer->user_id);
     }
 
-    public static function getInfo($roomId){
-        return 2;
-    }
-
-    public static function getCardInfo($room_id){
+    public static function getCardInfo($roomId){
         $data = [];
 
-        $game = Game::find()->where(['room_id'=>$room_id])->one();
-        if($game) {
-            $user_id = Yii::$app->user->id;
-            //获取当前玩家角色  只获取对手手牌信息（花色和数字）  自己的手牌只获取排序信息
-            $room_player = RoomPlayer::find()->where(['user_id' => $user_id, 'room_id' => $game->room_id])->one();
-            if ($room_player) {
-                $player_is_host = $room_player->is_host == 1;
+        $game = self::getOne($roomId);
+        $user_id = Yii::$app->user->id;
+        //获取当前玩家角色  只获取对手手牌信息（花色和数字）  自己的手牌只获取排序信息
+        $room_player = RoomPlayer::find()->where(['user_id' => $user_id, 'room_id' => $game->room_id])->one();
+        if ($room_player) {
+            $player_is_host = $room_player->is_host == 1;
 
-                $card_type = $player_is_host ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
-
-
-                $hostCard = GameCard::find()->where(['room_id' => $room_id, 'type' => $card_type])->orderBy('type_ord asc')->all();
-                $guestCard = GameCard::find()->where(['room_id' => $room_id, 'type' => $card_type])->orderBy('type_ord asc')->all();
+            $card_type = $player_is_host ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
 
 
-                $hostHands = [];
-                $guestHands = [];
-
-                if($player_is_host){
-                    foreach ($hostCard as $card) {
-                        $cardArr = [
-                            'ord' => $card->type_ord
-                        ];
-                        $hostHands[] = $cardArr;
-                    }
-
-                    foreach ($guestCard as $card) {
-                        $cardArr = [
-                            'color' => $card->color,
-                            'num' => $card->num,
-                            'ord' => $card->type_ord
-                        ];
-                        $guestHands[] = $cardArr;
-                    }
-                }else{
-                    foreach ($hostCard as $card) {
-                        $cardArr = [
-                            'color' => $card->color,
-                            'num' => $card->num,
-                            'ord' => $card->type_ord
-                        ];
-                        $hostHands[] = $cardArr;
-                    }
+            $hostCard = GameCard::find()->where(['room_id' => $roomId, 'type' => $card_type])->orderBy('type_ord asc')->all();
+            $guestCard = GameCard::find()->where(['room_id' => $roomId, 'type' => $card_type])->orderBy('type_ord asc')->all();
 
 
-                    foreach ($guestCard as $card) {
-                        $cardArr = [
-                            'ord' => $card->type_ord
-                        ];
-                        $guestHands[] = $cardArr;
-                    }
+            $hostHands = [];
+            $guestHands = [];
+
+            if($player_is_host){
+                foreach ($hostCard as $card) {
+                    $cardArr = [
+                        'ord' => $card->type_ord
+                    ];
+                    $hostHands[] = $cardArr;
                 }
 
-
-                $libraryCardCount = (int) GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->count();
-                $tableCard = GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_SUCCEEDED])->orderBy('type_ord asc')->all();
-                $discardCardCount = (int) GameCard::find()->where(['room_id' => $room_id, 'type' => GameCard::TYPE_DISCARDED])->orderBy('type_ord asc')->count();
-
-
-                $table_cards = [0,0,0,0,0];
-                foreach ($tableCard as $card) {
-                    //TODO 完整性检查
-                    $table_cards[$card->color]++;
+                foreach ($guestCard as $card) {
+                    $cardArr = [
+                        'color' => $card->color,
+                        'num' => $card->num,
+                        'ord' => $card->type_ord
+                    ];
+                    $guestHands[] = $cardArr;
                 }
-
-                $data['hostHands'] = $hostHands;
-                $data['guestHands'] = $guestHands;
-                $data['libraryCardsNum'] = $libraryCardCount;
-                $data['discardCardsNum'] = $discardCardCount;
-
-                $data['successCards'] = $table_cards;
-
-                $data['cueNum'] = $game->cue_num;
-                $data['chanceNum'] = $game->chance_num;
-                $data['score'] = (int) $game->score;
             }else{
-                //TODO
+                foreach ($hostCard as $card) {
+                    $cardArr = [
+                        'color' => $card->color,
+                        'num' => $card->num,
+                        'ord' => $card->type_ord
+                    ];
+                    $hostHands[] = $cardArr;
+                }
+
+
+                foreach ($guestCard as $card) {
+                    $cardArr = [
+                        'ord' => $card->type_ord
+                    ];
+                    $guestHands[] = $cardArr;
+                }
             }
+
+
+            $libraryCardCount = (int) GameCard::find()->where(['room_id' => $roomId, 'type' => GameCard::TYPE_IN_LIBRARY])->orderBy('type_ord asc')->count();
+            $tableCard = GameCard::find()->where(['room_id' => $roomId, 'type' => GameCard::TYPE_SUCCEEDED])->orderBy('type_ord asc')->all();
+            $discardCardCount = (int) GameCard::find()->where(['room_id' => $roomId, 'type' => GameCard::TYPE_DISCARDED])->orderBy('type_ord asc')->count();
+
+
+            $table_cards = [0,0,0,0,0];
+            foreach ($tableCard as $card) {
+                //TODO 完整性检查
+                $table_cards[$card->color]++;
+            }
+
+            $data['hostHands'] = $hostHands;
+            $data['guestHands'] = $guestHands;
+            $data['libraryCardsNum'] = $libraryCardCount;
+            $data['discardCardsNum'] = $discardCardCount;
+
+            $data['successCards'] = $table_cards;
+
+            $data['cueNum'] = $game->cue_num;
+            $data['chanceNum'] = $game->chance_num;
+            $data['score'] = (int) $game->score;
         }else{
             //TODO
         }
+
         return $data;
     }
 
@@ -307,75 +313,67 @@ class Game extends ActiveRecord
      *
      */
 
-    public static function playCard($roomId, $typeOrd){
 
-
+    /*
+     * 指定房间的游戏得分+1
+     */
+    public static function addScore($roomId){
+        $game = self::getOne($roomId);
+        $game->score += 1;
+        if(!$game->save()){
+            GameException::t('add_score_failure');
+        }
     }
 
-    public static function checkIsPlayerRound(){
-
-    }
-
-
-
-    public static function discardCard($roomId, $typeOrd){
-
-
-    }
-
-    public static function cueCard($roomId, $typeOrd, $cueType) {
-
-
-    }
-
-    public static function recoverCue($room_id){
-        $game = Game::find()->where(['room_id'=>$room_id])->one();
-        if($game){
-            if($game->cue_num < Game::DEFAULT_CUE){
-                $game->cue_num = $game->cue_num + 1;
-                if($game->save())
-                    return true;
+    /*
+     * 指定房间的游戏恢复一个提示数，最大不会超过默认初始提示数（Game::DEFAULT_CUE）
+     */
+    public static function recoverCue($roomId){
+        $game = self::getOne($roomId);
+        if($game->cue_num < Game::DEFAULT_CUE){
+            $game->cue_num = $game->cue_num + 1;
+            if(!$game->save()){
+                GameException::t('recover_cue_failure');
             }
         }
-        return false;
     }
 
-
-    public static function useCue($room_id){
-        $game = Game::find()->where(['room_id'=>$room_id])->one();
-        if($game){
-            if($game->cue_num > 0 ){
-                $game->cue_num = $game->cue_num - 1;
-                if($game->save())
-                    return true;
+    /*
+     * 指定房间的游戏消耗一个提示数，最小不会小于0
+     */
+    public static function useCue($roomId){
+        $game = self::getOne($roomId);
+        if($game->cue_num > 0 ){
+            $game->cue_num = $game->cue_num - 1;
+            if(!$game->save()){
+                GameException::t('use_cue_failure');
             }
         }
-        return false;
     }
 
+    /*
+     * 指定房间的游戏消耗一个机会数，最小不会小于0
+     */
     public static function useChance($roomId){
-        $game = Game::getOne($roomId);
+        $game = self::getOne($roomId);
         if($game->chance_num > 0){
             $game->chance_num = $game->chance_num - 1;
-            if($game->save())
-                return [true, (int) $game->chance_num];
-        }else{
-            // TODO 机会数用完
+            if(!$game->save()){
+                GameException::t('use_chance_failure');
+            }
         }
-
-        return [false, -1];
     }
 
-    public static function changeRoundPlayer($room_id){
-        $game = Game::find()->where(['room_id'=>$room_id])->one();
-        if($game){
-            $game->round_player_is_host = $game->round_player_is_host==1?0:1;
-            $game->round_num = $game->round_num+1;
-            if($game->save())
-                return true;
+    /*
+     * 指定房间的游戏交换玩家回合,且回合数+1
+     */
+    public static function changeRoundPlayer($roomId){
+        $game = self::getOne($roomId);
+        $game->round_player_is_host = $game->round_player_is_host == 1 ? 0 : 1;
+        $game->round_num = $game->round_num + 1;
+        if(!$game->save()) {
+            GameException::t('change_round_player_failure');
         }
-        return false;
     }
-
 
 }
