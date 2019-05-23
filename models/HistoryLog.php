@@ -17,16 +17,18 @@ use yii\db\Expression;
  */
 class HistoryLog extends \yii\db\ActiveRecord
 {
-    const TYPE_PLAY_CARD = 1;
-    const TYPE_DISCARD_CARD  = 2;
-    const TYPE_CUE_CARD = 3;
+    const TYPE_START_GAME = 1;
+    const TYPE_PLAY_CARD = 2;
+    const TYPE_DISCARD_CARD  = 3;
+    const TYPE_CUE_CARD = 4;
+    const TYPE_END_GAME = 5;
 
     /**
      * @inheritdoc
      */
     public static function tableName()
     {
-        return 'history_log';
+        return '{{%history_log}}';
     }
 
 
@@ -72,11 +74,23 @@ class HistoryLog extends \yii\db\ActiveRecord
     }
 
 
-    public static function record($roomId, $logType, $params){
+    public static function record($roomId, $logType, $params = []){
         $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
         if($history){
 
-            if($logType == 'discard'){
+            if($logType == 'start'){
+                $historyLog = new HistoryLog();
+                $historyLog->history_id = $history->id;
+                $historyLog->type = HistoryLog::TYPE_START_GAME;
+                $historyLog->content = '游戏开始';
+                $historyLog->save();
+            } else if($logType == 'end'){
+                $historyLog = new HistoryLog();
+                $historyLog->history_id = $history->id;
+                $historyLog->type = HistoryLog::TYPE_END_GAME;
+                $historyLog->content = '游戏结束';
+                $historyLog->save();
+            } else if($logType == 'discard'){
                 list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId, $params['cardOrd']);
                 if($get_content_success){
                     $historyLog = new HistoryLog();
@@ -105,7 +119,6 @@ class HistoryLog extends \yii\db\ActiveRecord
                     $historyLog->content_param = $content_param;
                     $historyLog->content = $content;
                     $historyLog->save();
-                    //var_dump($historyLog->errors);exit;
                 }
             }
         }

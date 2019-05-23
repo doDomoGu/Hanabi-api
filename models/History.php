@@ -28,7 +28,7 @@ class History extends ActiveRecord
      */
     public static function tableName()
     {
-        return 'history';
+        return '{{%history}}';
     }
 
     public function behaviors()
