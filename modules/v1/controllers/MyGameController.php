@@ -93,6 +93,10 @@ class MyGameController extends MyActiveController
         # 创建游戏History
         History::createOne($roomId);
 
+        # 记录日志
+        HistoryLog::record($roomId, 'start');
+
+        #清除主客玩家的房间缓存
         MyRoomCache::clear($hostPlayer->user_id);
         MyRoomCache::clear($guestPlayer->user_id);
 
@@ -121,12 +125,19 @@ class MyGameController extends MyActiveController
         # 执行结束游戏
         Game::deleteOne($this->roomId);
 
+        # 记录结束日志
+        HistoryLog::record($this->roomId, 'end');
+
         # 日志状态修改为结束
         History::deleteOne($this->roomId);
 
-        #清除主客玩家的房间缓存
+        #清除主客玩家的游戏缓存
         MyGameCache::clear($this->hostPlayer->user_id);
         MyGameCache::clear($this->guestPlayer->user_id);
+
+        #清除主客玩家的房间缓存
+        MyRoomCache::clear($this->hostPlayer->user_id);
+        MyRoomCache::clear($this->guestPlayer->user_id);
     }
 
     /**
@@ -290,6 +301,9 @@ class MyGameController extends MyActiveController
             # 执行结束游戏
             Game::deleteOne($this->roomId);
 
+            # 记录结束日志
+            HistoryLog::record($this->roomId, 'end');
+
             # 日志状态修改为结束
             History::deleteOne($this->roomId);
         }
@@ -370,6 +384,9 @@ class MyGameController extends MyActiveController
 
             # 执行结束游戏
             Game::deleteOne($this->roomId);
+
+            # 记录结束日志
+            HistoryLog::record($this->roomId, 'end');
 
             # 日志状态修改为结束
             History::deleteOne($this->roomId);
