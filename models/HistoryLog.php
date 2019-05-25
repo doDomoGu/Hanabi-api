@@ -311,7 +311,8 @@ class HistoryLog extends \yii\db\ActiveRecord
             if ($history) {
                 $logs = HistoryLog::find()->where(['history_id' => $history->id])->orderBy('created_at asc')->all();
                 foreach ($logs as $log) {
-                    $data[] = $log->content.' ('.date('Y-m-d H:i:s',strtotime($log->created_at)).')';
+//                    $data[] = $log->content.' ('.date('Y-m-d H:i:s',strtotime($log->created_at)).')';
+                    $data[] = date('Y-m-d H:i:s',strtotime($log->created_at)).' '. $log->content;
                 }
                 $success = true;
             } else {
