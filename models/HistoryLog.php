@@ -2,6 +2,7 @@
 
 namespace app\models;
 
+use app\components\exception\HistoryException;
 use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
@@ -301,27 +302,21 @@ class HistoryLog extends \yii\db\ActiveRecord
 
 
 
-    public static function getList($room_id) {
-        $success = false;
-        $msg = '';
+    public static function getList($roomId) {
         $data = [];
-        $game = Game::find()->where(['room_id' => $room_id, 'status' => Game::STATUS_PLAYING])->one();
-        if ($game) {
-            $history = History::find()->where(['room_id' => $room_id, 'status' => History::STATUS_PLAYING])->one();
-            if ($history) {
-                $logs = HistoryLog::find()->where(['history_id' => $history->id])->orderBy('created_at asc')->all();
-                foreach ($logs as $log) {
-//                    $data[] = $log->content.' ('.date('Y-m-d H:i:s',strtotime($log->created_at)).')';
-                    $data[] = date('Y-m-d H:i:s',strtotime($log->created_at)).' '. $log->content;
-                }
-                $success = true;
-            } else {
-                $msg = 'history不存在';
-            }
-        } else {
-            $msg = '游戏不存在';
+        $history = History::find()->where(['room_id' => $roomId, 'status' => History::STATUS_PLAYING])->one();
+
+        if (!$history) {
+            HistoryException::t('get_log_history_not_found');
         }
-        return [$success,$msg,$data];
+
+        $logs = HistoryLog::find()->where(['history_id' => $history->id])->orderBy('created_at asc')->all();
+        foreach ($logs as $log) {
+//                    $data[] = $log->content.' ('.date('Y-m-d H:i:s',strtotime($log->created_at)).')';
+            $data[] = date('Y-m-d H:i:s',strtotime($log->created_at)).' : '. $log->content;
+        }
+
+        return $data;
     }
 
 

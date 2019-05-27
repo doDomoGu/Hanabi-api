@@ -495,7 +495,7 @@ class UserController extends MyActiveController
                                     }
 
 
-                                    list( , , $history_log) = HistoryLog::getList($game->room_id);
+                                    $history_log = HistoryLog::getList($game->room_id);
 
 
 

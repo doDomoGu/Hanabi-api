@@ -184,7 +184,7 @@ class MyGameController extends MyActiveController
                 'roundPlayerIsHost' => $game->round_player_is_host == 1,
             ];
             $data['card'] = Game::getCardInfo($game->room_id);
-            list(, , $data['log']) = HistoryLog::getList($game->room_id);
+            $data['log'] = HistoryLog::getList($game->room_id);
             $data['game']['lastUpdated'] = HistoryLog::getLastUpdate($game->room_id);
             MyGameCache::set(Yii::$app->user->id);
         }
