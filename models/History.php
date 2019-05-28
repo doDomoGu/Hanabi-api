@@ -72,6 +72,10 @@ class History extends ActiveRecord
         ];
     }
 
+    public static function getOne($roomId){
+        return self::find()->where(['room_id'=>$roomId])->one();
+    }
+
     public static function createOne($roomId){
         $room = Room::getOne($roomId);
 

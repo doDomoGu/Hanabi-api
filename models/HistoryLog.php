@@ -76,51 +76,57 @@ class HistoryLog extends \yii\db\ActiveRecord
 
 
     public static function record($roomId, $logType, $params = []){
-        $history = History::find()->where(['room_id'=>$roomId,'status'=>History::STATUS_PLAYING])->one();
-        if($history){
+        $history = History::getOne($roomId);
 
-            if($logType == 'start'){
+        if(!$history) {
+            HistoryException::t('not_found');
+        }
+
+        if($history->status != Game::STATUS_PLAYING) {
+            HistoryException::t('not_playing');
+        }
+
+        if($logType == 'start'){
+            $historyLog = new HistoryLog();
+            $historyLog->history_id = $history->id;
+            $historyLog->type = HistoryLog::TYPE_START_GAME;
+            $historyLog->content = '游戏开始';
+            $historyLog->save();
+        } else if($logType == 'end'){
+            $historyLog = new HistoryLog();
+            $historyLog->history_id = $history->id;
+            $historyLog->type = HistoryLog::TYPE_END_GAME;
+            $historyLog->content = '游戏结束';
+            $historyLog->save();
+        } else if($logType == 'discard'){
+            list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId, $params['cardOrd']);
+            if($get_content_success){
                 $historyLog = new HistoryLog();
                 $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_START_GAME;
-                $historyLog->content = '游戏开始';
+                $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
+                $historyLog->content_param = $content_param;
+                $historyLog->content = $content;
                 $historyLog->save();
-            } else if($logType == 'end'){
+            }
+        } else if($logType == 'play') {
+            list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($roomId,$params['cardOrd'],$params['playSuccess']);
+            if($get_content_success){
                 $historyLog = new HistoryLog();
                 $historyLog->history_id = $history->id;
-                $historyLog->type = HistoryLog::TYPE_END_GAME;
-                $historyLog->content = '游戏结束';
+                $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
+                $historyLog->content_param = $content_param;
+                $historyLog->content = $content;
                 $historyLog->save();
-            } else if($logType == 'discard'){
-                list($get_content_success,$content_param,$content) = HistoryLog::getContentByDiscard($roomId, $params['cardOrd']);
-                if($get_content_success){
-                    $historyLog = new HistoryLog();
-                    $historyLog->history_id = $history->id;
-                    $historyLog->type = HistoryLog::TYPE_DISCARD_CARD;
-                    $historyLog->content_param = $content_param;
-                    $historyLog->content = $content;
-                    $historyLog->save();
-                }
-            } else if($logType == 'play') {
-                list($get_content_success,$content_param,$content) = HistoryLog::getContentByPlay($roomId,$params['cardOrd'],$params['playSuccess']);
-                if($get_content_success){
-                    $historyLog = new HistoryLog();
-                    $historyLog->history_id = $history->id;
-                    $historyLog->type = HistoryLog::TYPE_PLAY_CARD;
-                    $historyLog->content_param = $content_param;
-                    $historyLog->content = $content;
-                    $historyLog->save();
-                }
-            } else if($logType == 'cue') {
-                list($get_content_success,$content_param,$content) = HistoryLog::getContentByCue($roomId, $params['cardOrd'], $params['cueType'], $params['cueCardsOrd']);
-                if($get_content_success){
-                    $historyLog = new HistoryLog();
-                    $historyLog->history_id = $history->id;
-                    $historyLog->type = HistoryLog::TYPE_CUE_CARD;
-                    $historyLog->content_param = $content_param;
-                    $historyLog->content = $content;
-                    $historyLog->save();
-                }
+            }
+        } else if($logType == 'cue') {
+            list($get_content_success,$content_param,$content) = HistoryLog::getContentByCue($roomId, $params['cardOrd'], $params['cueType'], $params['cueCardsOrd']);
+            if($get_content_success){
+                $historyLog = new HistoryLog();
+                $historyLog->history_id = $history->id;
+                $historyLog->type = HistoryLog::TYPE_CUE_CARD;
+                $historyLog->content_param = $content_param;
+                $historyLog->content = $content;
+                $historyLog->save();
             }
         }
     }
