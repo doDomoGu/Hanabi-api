@@ -161,15 +161,15 @@ class MyGameController extends MyActiveController
                 return ['noUpdate'=>true];
             }
         }
+
         #判断是否在游戏中， 获得房间ID
         list($isInRoom, $roomId) = MyRoom::isIn();
         #不在房间中 抛出异常
         if(!$isInRoom) {
-            MyGameException::t('not_in_room');
+            return ['roomId' => -1];
         }
 
         $isPlaying = Game::isPlaying($roomId);
-
         $data = [];
         $data['isPlaying'] = $isPlaying;
         $data['roomId'] = $roomId;
