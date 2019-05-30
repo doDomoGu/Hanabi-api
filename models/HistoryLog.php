@@ -76,14 +76,10 @@ class HistoryLog extends \yii\db\ActiveRecord
 
 
     public static function record($roomId, $logType, $params = []){
-        $history = History::getOne($roomId);
+        $history = History::getOneWithPlaying($roomId);
 
         if(!$history) {
             HistoryException::t('not_found');
-        }
-
-        if($history->status != Game::STATUS_PLAYING) {
-            HistoryException::t('not_playing');
         }
 
         if($logType == 'start'){

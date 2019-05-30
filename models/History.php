@@ -76,6 +76,10 @@ class History extends ActiveRecord
         return self::find()->where(['room_id'=>$roomId])->one();
     }
 
+    public static function getOneWithPlaying($roomId){
+        return self::find()->where(['room_id'=>$roomId,'status'=>Game::STATUS_PLAYING])->one();
+    }
+
     public static function createOne($roomId){
         $room = Room::getOne($roomId);
 
