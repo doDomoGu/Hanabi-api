@@ -4,7 +4,6 @@ use yii\db\Migration;
 use app\models\User;
 use app\models\Room;
 
-
 class m171219_143428_init extends Migration
 {
     public function up()
@@ -14,52 +13,64 @@ class m171219_143428_init extends Migration
             $tableOptions = 'CHARACTER SET utf8 COLLATE utf8_unicode_ci ENGINE=MyISAM';
         }
 
-        $this->createTable('{{%user}}', [
-            'id' => $this->primaryKey(),
-            'username' => $this->string(100)->notNull()->unique(),
-            'password' => $this->string(100)->notNull(),
-            'nickname' => $this->string(100)->notNull(),
-            'mobile' => $this->string(11)->notNull()->unique(),
-            'email' => $this->string(100)->null(),
-            'avatar' => $this->string(200)->null(),
-            'gender' => $this->smallInteger(1)->notNull()->defaultValue(0),
-            'birthday' => $this->date()->null(),
-            'status' => $this->smallInteger(1)->notNull()->defaultValue(1),
+        //用户表
+        $userTable = '{{%user}}';
+
+        $this->createTable($userTable, [
+            'id'         => $this->primaryKey(11)->unsigned(),
+            'username'   => $this->string(100)->notNull()->unique()->comment('账号'),
+            'password'   => $this->string(100)->notNull()->comment('密码'),
+            'nickname'   => $this->string(100)->notNull()->comment('显示用昵称'),
+            'mobile'     => $this->string(20)->notNull()->unique(),
+            'email'      => $this->string(100)->null(),
+            'avatar'     => $this->string(200)->null(),
+            'gender'     => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0)->comment('性别，0:无;1:男,2:女'),
+            'birthday'   => $this->date()->null(),
+            'status'     => $this->boolean()->notNull()->unsigned()->defaultValue(1),
             'created_at' => $this->dateTime()->notNull(),
             'updated_at' => $this->dateTime()->notNull(),
-        ], $tableOptions.' AUTO_INCREMENT=10001');
+        ], $tableOptions.' AUTO_INCREMENT=100001');
 
+        //初始化玩家1
         $user = new User();
-        $user->username = 'admin';
+        $user->username = 'player1';
         $user->password = md5('123123');
-        $user->nickname = 'Admin';
+        $user->nickname = '玩家1';
         $user->mobile = '18017865582';
         $user->save();
 
+        //初始化玩家2
         $user = new User();
-        $user->username = 'admin2';
+        $user->username = 'player2';
         $user->password = md5('123123');
-        $user->nickname = 'Admin2';
+        $user->nickname = '玩家2';
         $user->mobile = '18017865583';
         $user->save();
 
-        $this->createTable('{{%user_auth}}', [
-            'id' => $this->primaryKey(),
-            'user_id'=> $this->integer(11)->notNull(),
-            'token' => $this->string(200)->notNull(),
-            'expired_time' => $this->dateTime()->notNull(),
-            'created_at' => $this->dateTime()->notNull(),
+        //用户认证表
+        $userAuthTable = '{{%user_auth}}';
+        $this->createTable($userAuthTable, [
+            'user_id'       => $this->integer(11)->notNull()->unsigned(),
+            'token'         => $this->string(200)->notNull(),
+            'expired_time'  => $this->dateTime()->notNull(),
+            'created_at'    => $this->dateTime()->notNull(),
         ], $tableOptions);
 
-        $this->createTable('{{%room}}', [
-            'id' => $this->integer(11)->notNull(),
-            'title' => $this->string(100)->notNull(),
-            'password' => $this->string(100),
+        $this->addPrimaryKey('pk', $userAuthTable, 'token');
+
+        //房间表
+        $roomTable = '{{%room}}';
+        $this->createTable($roomTable, [
+            'id'         => $this->integer(11)->notNull()->unsigned(),
+            'title'      => $this->string(100)->notNull(),
+            'password'   => $this->string(100),
             'updated_at' => $this->dateTime()->notNull(),
         ], $tableOptions);
-        $this->addPrimaryKey('pk','{{%room}}','id');
 
-        for($i=1;$i<=10;$i++){
+        $this->addPrimaryKey('pk', $roomTable, 'id');
+
+        //初始化十间房间
+        for($i=1; $i<=10; $i++){
             $room = new Room();
             $room->id = $i;
             $room->title = chr(mt_rand(97, 122)).chr(mt_rand(97, 122)).chr(mt_rand(97, 122));
@@ -67,65 +78,75 @@ class m171219_143428_init extends Migration
             $room->save();
         }
 
-        $this->createTable('{{%room_player}}', [
-            'user_id' => $this->integer(11)->notNull()->unsigned(),
-            'room_id' => $this->integer(11)->notNull()->unsigned(),
-            'is_host' => $this->smallInteger(1)->notNull()->unsigned(),
-            'is_ready' => $this->smallInteger(1)->notNull()->unsigned(),
+        //房间玩家表
+        $roomPlayerTable = '{{%room_player}}';
+        $this->createTable($roomPlayerTable, [
+            'user_id'    => $this->integer(11)->notNull()->unsigned(),
+            'room_id'    => $this->integer(11)->notNull()->unsigned(),
+            'is_host'    => $this->boolean()->notNull()->unsigned()->defaultValue(0),
+            'is_ready'   => $this->boolean()->notNull()->unsigned()->defaultValue(0),
             'updated_at' => $this->dateTime()->notNull()
         ], $tableOptions);
-        $this->addPrimaryKey('pk','{{%room_player}}','user_id');
-        $this->createIndex('user_room','{{%room_player}}',['user_id','room_id'],true);
+        $this->addPrimaryKey('pk',$roomPlayerTable,'user_id');
+        $this->createIndex('user_room', $roomPlayerTable, ['user_id', 'room_id'], true);
 
-
-        $this->createTable('{{%game}}', [
+        //游戏表
+        $gameTable = '{{%game}}';
+        $this->createTable($gameTable, [
             'room_id'               => $this->integer(11)->notNull()->unsigned(),
-            'round_num'             => $this->smallInteger(1)->notNull()->unsigned(),
-            'round_player_is_host'  => $this->smallInteger(1)->notNull()->unsigned(),
-            'cue_num'               => $this->smallInteger(1)->notNull()->unsigned()->defaultValue(0),
-            'chance_num'            => $this->smallInteger(1)->notNull()->unsigned()->defaultValue(0),
-            'status'                => $this->smallInteger(1)->notNull()->unsigned()->defaultValue(1),
+            'round_num'             => $this->tinyInteger(2)->notNull()->unsigned()->defaultValue(0),
+            'round_player_is_host'  => $this->boolean()->notNull()->unsigned()->defaultValue(0),
+            'cue_num'               => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
+            'chance_num'            => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
+            'status'                => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(1),
             'score'                 => $this->string(5)->null(),
             'updated_at'            => $this->dateTime()->notNull()
         ], $tableOptions);
-        $this->addPrimaryKey('pk','{{%game}}','room_id');
+        $this->addPrimaryKey('pk', $gameTable, 'room_id');
 
-        $this->createTable('{{%game_card}}', [
+        //游戏卡牌表
+        $gameCardTable = '{{%game_card}}';
+        $this->createTable($gameCardTable, [
             'room_id'       => $this->integer(11)->notNull()->unsigned(),
-            'type'          => $this->smallInteger(1)->notNull()->unsigned()->defaultValue(0),
-            'type_ord'      => $this->smallInteger(2)->notNull()->unsigned()->defaultValue(0),
-            'color'         => $this->smallInteger(1)->notNull()->unsigned()->defaultValue(0),
-            'num'           => $this->smallInteger(1)->notNull()->unsigned()->defaultValue(0),
-            'ord'           => $this->smallInteger(2)->notNull()->unsigned()->defaultValue(0),
+            'type'          => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
+            'type_ord'      => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
+            'color'         => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
+            'num'           => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
+            'ord'           => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
             'updated_at'    => $this->dateTime()->notNull()
         ], $tableOptions);
-        $this->addPrimaryKey('pk','{{%game_card}}',['room_id','ord']);
+        $this->addPrimaryKey('pk', $gameCardTable, ['room_id', 'ord']);
 
-        $this->createTable('{{%history}}', [
-            'id'            => $this->primaryKey(),
+        //游戏历史表
+        $historyTable = '{{%history}}';
+        $this->createTable($historyTable, [
+            'id'            => $this->primaryKey(11)->unsigned(),
             'room_id'       => $this->integer(11)->notNull()->unsigned(),
-            'status'        => $this->smallInteger(1)->notNull()->unsigned()->defaultValue(0),
+            'status'        => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
             'score'         => $this->string(5)->notNull(),
             'created_at'    => $this->dateTime()->notNull(),
             'updated_at'    => $this->dateTime()->notNull()
         ], $tableOptions);
 
-        $this->createTable('{{%history_log}}', [
-            'id'            => $this->primaryKey(),
+        //游戏记录日志表
+        $historyLogTable = '{{%history_log}}';
+        $this->createTable($historyLogTable, [
+            'id'            => $this->primaryKey(11),
             'history_id'    => $this->integer(11)->notNull()->unsigned(),
-            'type'          => $this->smallInteger(1)->notNull()->unsigned()->defaultValue(0),
-            'content_param' => $this->text()->notNull(),
+            'type'          => $this->tinyInteger(1)->notNull()->unsigned()->defaultValue(0),
+            'content_param' => $this->text(),
             'content'       => $this->text()->notNull(),
             'created_at'    => $this->dateTime()->notNull()
         ], $tableOptions);
 
-
-        $this->createTable('{{%history_player}}', [
+        //历史记录
+        $historyPlayerTable = '{{%history_player}}';
+        $this->createTable($historyPlayerTable, [
             'history_id'    => $this->integer(11)->notNull()->unsigned(),
             'user_id'       => $this->integer(11)->notNull()->unsigned(),
-            'is_host'       => $this->smallInteger(1)->notNull()->unsigned(),
+            'is_host'       => $this->boolean()->notNull()->unsigned()->defaultValue(0)
         ], $tableOptions);
-        $this->addPrimaryKey('pk','{{%history_player}}','history_id,user_id');
+        $this->addPrimaryKey('pk', $historyPlayerTable, ['history_id', 'user_id']);
 
     }
 
