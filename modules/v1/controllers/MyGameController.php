@@ -415,7 +415,7 @@ class MyGameController extends MyActiveController
         $this->checkDo();
 
         # 根据isHost，确定卡牌类型是主机手牌还是客机手牌
-        $cardType = $this->isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
+        $cardType = !$this->isHost ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
 
         # 找到所选择的牌
         $card = GameCard::getOne($this->roomId, $cardType, $typeOrd);

@@ -207,11 +207,8 @@ class Game extends ActiveRecord
         if ($room_player) {
             $player_is_host = $room_player->is_host == 1;
 
-            $card_type = $player_is_host ? GameCard::TYPE_HOST_HANDS : GameCard::TYPE_GUEST_HANDS;
-
-
-            $hostCard = GameCard::find()->where(['room_id' => $roomId, 'type' => $card_type])->orderBy('type_ord asc')->all();
-            $guestCard = GameCard::find()->where(['room_id' => $roomId, 'type' => $card_type])->orderBy('type_ord asc')->all();
+            $hostCard = GameCard::find()->where(['room_id' => $roomId, 'type' => GameCard::TYPE_HOST_HANDS])->orderBy('type_ord asc')->all();
+            $guestCard = GameCard::find()->where(['room_id' => $roomId, 'type' => GameCard::TYPE_GUEST_HANDS])->orderBy('type_ord asc')->all();
 
 
             $hostHands = [];
