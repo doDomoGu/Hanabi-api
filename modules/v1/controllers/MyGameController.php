@@ -365,8 +365,7 @@ class MyGameController extends MyActiveController
             $playSuccess = false;
         }
 
-        # 记录日志
-        HistoryLog::record($this->roomId, 'play', ['cardOrd'=>$card->ord, 'playSuccess'=>$playSuccess]);
+
 
 
         # 操作后的检查
@@ -379,8 +378,14 @@ class MyGameController extends MyActiveController
 
             # 进入下一个回合
             Game::nextRound($this->roomId);
+
+            # 记录日志
+            HistoryLog::record($this->roomId, 'play', ['cardOrd'=>$card->ord, 'playSuccess'=>$playSuccess]);
         }else{
             # 不通过则进入结束游戏流程
+
+            # 记录成功日志
+            HistoryLog::record($this->roomId, 'play', ['cardOrd'=>$card->ord, 'playSuccess'=>false]);
 
             # 执行结束游戏
             Game::deleteOne($this->roomId);
