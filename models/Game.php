@@ -338,6 +338,8 @@ class Game extends ActiveRecord
             if(!$game->save()){
                 GameException::t('use_cue_failure');
             }
+        }else{
+            GameException::t('no_use_chance');
         }
     }
 
