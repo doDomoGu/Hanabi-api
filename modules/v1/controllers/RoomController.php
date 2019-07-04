@@ -37,12 +37,12 @@ class RoomController extends MyActiveController {
         $rooms = Room::find()->all();
         $list = [];
         foreach($rooms as $r){
-            $roomPlayerCount = (int) RoomPlayer::find()->where(['room_id'=>$r->id])->count();
+            $roomPlayerNum = (int) RoomPlayer::find()->where(['room_id'=>$r->id])->count();
             $list[] = [
                 'id'            => $r->id,
                 'title'         => $r->title,
                 'isLocked'      => $r->password!='',
-                'playerCount'   => $roomPlayerCount
+                'playerNum'   => $roomPlayerNum
             ];
         };
         RoomListCache::updateUserKey();
